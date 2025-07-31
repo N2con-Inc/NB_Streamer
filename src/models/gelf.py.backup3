@@ -215,40 +215,32 @@ class GELFMessage(BaseModel):
         """
         # Generate short message if not provided
         if not short_message:
-            # Try to use the actual Message field from Netbird events
-            if "Message" in event_data and event_data["Message"]:
-                short_message = str(event_data["Message"]).strip()
+            event_type = event_data.get("type", event_data.get("event_type", "unknown"))
+            action = event_data.get("action", "")
+            user = event_data.get("user", "")
+            if action and user:
+                short_message = f"Netbird {event_type}: {action} by {user}"
+            elif event_type:
+                short_message = f"Netbird {event_type}"
             else:
-                # Fallback to constructing from available fields
-                event_type = event_data.get("type", event_data.get("event_type", ""))
-                action = event_data.get("action", "")
-                user = event_data.get("user", event_data.get("InitiatorID", ""))
-                
-                if action and user:
-                    short_message = f"Netbird {event_type}: {action} by {user}"
-                elif event_type:
-                    short_message = f"Netbird {event_type}"
-                elif user:
-                    short_message = f"Netbird event by {user}"
-                else:
-                    short_message = "Netbird event"
+                short_message = "Netbird event"
         
-        # Handle timestamp - check both "timestamp" and "Timestamp" fields
+        # Handle timestamp
         timestamp = None
-        ts_field_value = event_data.get("timestamp") or event_data.get("Timestamp")
-        if ts_field_value:
-            if isinstance(ts_field_value, str):
+        if "timestamp" in event_data:
+            ts_value = event_data["timestamp"]
+            if isinstance(ts_value, str):
                 try:
                     # Try parsing ISO format
-                    dt = datetime.fromisoformat(ts_field_value.replace("Z", "+00:00"))
+                    dt = datetime.fromisoformat(ts_value.replace("Z", "+00:00"))
                     timestamp = dt.timestamp()
                 except ValueError:
                     # If parsing fails, use current time
                     timestamp = time.time()
-            elif isinstance(ts_field_value, (int, float)):
-                timestamp = ts_field_value
-            elif isinstance(ts_field_value, datetime):
-                timestamp = ts_field_value.timestamp()
+            elif isinstance(ts_value, (int, float)):
+                timestamp = ts_value
+            elif isinstance(ts_value, datetime):
+                timestamp = ts_value.timestamp()
         
         # Convert level to syslog level if it's a string
         level = 6  # Default INFO
