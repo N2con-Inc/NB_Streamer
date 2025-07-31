@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - 2025-07-31
 
+## [0.2.1] - 2025-07-31
+
+### Added
+- **Advanced Field Flattening**: Recursive flattening of nested Netbird event structures
+  - All nested objects become individual GELF fields with descriptive names
+  - Example: `meta.source_addr` becomes `_NB_meta_source_addr`
+  - Arrays handled with indexed flattening for object arrays
+  - Simple arrays preserved as JSON strings
+
+- **Enhanced Graylog Integration**:
+  - Individual searchable fields instead of JSON strings
+  - Better performance for complex queries
+  - Improved field discoverability in Graylog interface
+  - Auto-completion support for nested field searches
+
+- **Field Testing and Documentation**:
+  - `test_flattening.py` script for field discovery and validation
+  - `FIELD_FLATTENING_GUIDE.md` with comprehensive field mapping examples
+  - Graylog search pattern documentation
+  - Dashboard widget configuration examples
+
+### Changed
+- **Breaking Change**: Nested objects now flattened to individual fields
+  - Previous: `_NB_meta: "{\"source_addr\":\"10.0.1.100\"}"`
+  - Current: `_NB_meta_source_addr: "10.0.1.100"`
+- **Improved Field Naming**: Consistent underscore-separated naming convention
+- **Enhanced Array Handling**: Better support for complex nested arrays
+
+### Configuration Updates
+- **Graylog Server**: Updated to `10.0.1.244` (wizard.n2con.int)
+- **Tenant ID**: Changed to `n2con` for production deployment
+- **Sample Configuration**: Updated with production-ready examples
+
+### Technical Improvements
+- Recursive flattening algorithm with configurable depth
+- Thread-safe field processing for concurrent requests
+- Memory-efficient flattening for large event structures
+- Comprehensive error handling for malformed nested data
+
 ### Added
 - **Event Statistics System**: Comprehensive tracking of event processing metrics
   - Total counters for received, forwarded, and failed events
