@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - 2025-07-31
 
+## [0.2.3] - 2025-07-31
+
+### Fixed
+- **Graylog Message Display**: Resolved "Netbird unknown" appearing in Graylog message column
+  - Now uses actual Netbird `Message` field for `short_message` when available
+  - Example: "User successfully connected to VPN gateway" instead of "Netbird unknown"
+  - Improved readability and event identification in Graylog interface
+
+### Enhanced
+- **Message Generation Logic**:
+  1. **Preferred**: Uses `Message` field directly if available and non-empty
+  2. **Fallback**: Constructs from `event_type`, `action`, and `InitiatorID`
+  3. **Minimal**: Falls back to "Netbird event by [user]" format
+  - Always provides meaningful `short_message` for Graylog display
+
+- **Timestamp Handling**: Enhanced to support both `timestamp` and `Timestamp` fields
+  - Handles capitalization variations in Netbird event data
+  - Ensures accurate event timing in Graylog
+
+### Testing
+- Added `test_short_message.py` for message generation validation
+- Verified multiple scenarios: with Message, without Message, minimal fields
+- All test cases now produce meaningful, readable messages
+
+### User Experience
+- **Better Log Analysis**: Clear, descriptive messages in Graylog
+- **Improved Troubleshooting**: Actual event content displayed
+- **Enhanced Monitoring**: Meaningful message summaries for dashboard widgets
+
 ## [0.2.2] - 2025-07-31
 
 ### Added
