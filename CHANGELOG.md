@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - 2025-07-31
 
+## [0.2.2] - 2025-07-31
+
+### Added
+- **IP and Port Separation**: Automatic parsing of IP:port combinations into separate fields
+  - Supports both IPv4 (`192.168.1.1:80`) and IPv6 (`[2001:db8::1]:443`) formats
+  - Creates separate `_addr` and `_port` fields for better Graylog filtering
+  - Example: `source_addr: "192.168.68.141:54615"` becomes:
+    - `_NB_meta_source_addr: "192.168.68.141"`
+    - `_NB_meta_source_port: "54615"`
+
+- **Enhanced Network Analysis**:
+  - Improved subnet-based filtering with pure IP fields
+  - Port range queries for network security analysis
+  - Better dashboard visualization capabilities
+  - Separate indexing for IPs and ports improves query performance
+
+- **Testing and Documentation**:
+  - `test_ip_port_parsing.py` script for validation
+  - `IP_PORT_PARSING_GUIDE.md` with comprehensive examples
+  - Graylog search patterns for network analysis
+
+### Enhanced
+- **Field Processing**: Automatic detection of address fields with common patterns
+- **Regex Parsing**: Robust parsing logic for various IP:port formats
+- **Error Handling**: Graceful fallback for unparseable address formats
+
+### Graylog Benefits
+- Direct IP field searches: `_NB_meta_source_addr:"192.168.68.141"`
+- Port-specific filtering: `_NB_meta_destination_port:"80"`
+- Range queries: `_NB_meta_source_port:>49152`
+- Combined filters: `_NB_meta_source_addr:"192.168.*" AND _NB_meta_destination_port:"443"`
+
 ## [0.2.1] - 2025-07-31
 
 ### Added

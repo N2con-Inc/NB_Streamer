@@ -2,90 +2,9 @@
 
 import json
 import time
-import re
-from typing import Any, Dict, Optional, Union, Tuple
+from typing import Any, Dict, Optional, Union
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
-
-
-def parse_ip_port(addr_string: str) -> Tuple[Optional[str], Optional[str]]:
-    """
-    Parse IP:port combinations and return separate IP and port.
-    
-    Handles both IPv4 and IPv6 addresses with ports.
-    
-    Args:
-        addr_string: String in format "IP:port" or "[IPv6]:port"
-    
-    Returns:
-        Tuple of (ip, port) or (original_string, None) if not parseable
-    """
-    if not isinstance(addr_string, str):
-        return str(addr_string), None
-    
-    # IPv6 with port: [2001:db8::1]:8080
-    ipv6_port_pattern = r'^\[([^\]]+)\]:(\d+)$'
-    match = re.match(ipv6_port_pattern, addr_string)
-    if match:
-        return match.group(1), match.group(2)
-    
-    # IPv4 with port: 192.168.1.1:8080
-    ipv4_port_pattern = r'^([^:]+):(\d+)$'
-    match = re.match(ipv4_port_pattern, addr_string)
-    if match:
-        ip_part = match.group(1)
-        port_part = match.group(2)
-        
-        # Validate it looks like an IPv4 address (basic check)
-        if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', ip_part):
-            return ip_part, port_part
-    
-    # If no port found or doesn't match expected patterns, return as-is
-    return addr_string, None
-
-
-def enhance_address_fields(flattened_data: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Enhance flattened data by parsing IP:port combinations into separate fields.
-    
-    Looks for common address field patterns and splits them into IP and port components.
-    
-    Args:
-        flattened_data: Already flattened dictionary
-    
-    Returns:
-        Enhanced dictionary with parsed IP and port fields
-    """
-    enhanced_data = flattened_data.copy()
-    
-    # Common field patterns that might contain IP:port combinations
-    address_field_patterns = [
-        'source_addr', 'destination_addr', 'dest_addr', 'src_addr',
-        'remote_addr', 'local_addr', 'peer_addr', 'client_addr', 'server_addr'
-    ]
-    
-    # Find and process address fields
-    for field_name, field_value in list(flattened_data.items()):
-        # Check if this field matches any address pattern
-        field_lower = field_name.lower()
-        is_address_field = any(pattern in field_lower for pattern in address_field_patterns)
-        
-        if is_address_field and isinstance(field_value, str):
-            ip, port = parse_ip_port(field_value)
-            
-            if port is not None:
-                # Replace the original field with just the IP
-                enhanced_data[field_name] = ip
-                
-                # Add a new port field
-                # Convert source_addr -> source_port, destination_addr -> destination_port, etc.
-                port_field_name = field_name.replace('_addr', '_port').replace('_address', '_port')
-                if port_field_name == field_name:  # If no replacement happened, append _port
-                    port_field_name = f"{field_name}_port"
-                
-                enhanced_data[port_field_name] = port
-    
-    return enhanced_data
 
 
 def flatten_dict(data: Dict[str, Any], parent_key: str = '', separator: str = '_') -> Dict[str, Any]:
@@ -205,7 +124,7 @@ class GELFMessage(BaseModel):
         short_message: Optional[str] = None
     ) -> "GELFMessage":
         """
-        Create GELF message from Netbird event data with flattened and enhanced fields.
+        Create GELF message from Netbird event data with flattened fields.
         
         Args:
             event_data: Netbird event data dictionary
@@ -258,7 +177,7 @@ class GELFMessage(BaseModel):
             }
             level = level_mapping.get(level_str, 6)
         
-        # Prepare custom fields with flattened and enhanced structure
+        # Prepare custom fields with flattened structure
         custom_fields = {}
         
         # Add tenant field
@@ -267,11 +186,8 @@ class GELFMessage(BaseModel):
         # Flatten the entire event data structure
         flattened_data = flatten_dict(event_data)
         
-        # Enhance flattened data by parsing IP:port combinations
-        enhanced_data = enhance_address_fields(flattened_data)
-        
-        # Add all enhanced fields with NB_ prefix
-        for key, value in enhanced_data.items():
+        # Add all flattened fields with NB_ prefix
+        for key, value in flattened_data.items():
             # Skip timestamp and level as they're handled above
             if key not in ["timestamp", "level", "Timestamp"]:
                 # Ensure we have a string value for GELF
