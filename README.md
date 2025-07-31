@@ -1,271 +1,311 @@
 # NB_Streamer
 
-**Netbird Event Streaming Service to Graylog**
+A FastAPI-based service that receives Netbird events, transforms them into GELF (Graylog Extended Log Format), and forwards them to Graylog for centralized logging and monitoring.
 
-A lightweight, production-ready HTTP service that receives activity events from Netbird, transforms them into GELF format, and forwards them to Graylog with multi-tenant support.
+## Features
 
-## 🚀 Project Status: Phase 1 Complete ✅
+- **Event Processing**: Receives Netbird events via HTTP POST
+- **GELF Transformation**: Converts events to Graylog Extended Log Format
+- **Multi-tenant Support**: Tags events with tenant identifiers
+- **Flexible Authentication**: Supports Bearer token, Basic auth, and custom headers
+- **Real-time Statistics**: Tracks event processing metrics with detailed breakdowns
+- **Health Monitoring**: Built-in health checks and monitoring tools
+- **Docker Support**: Containerized deployment for easy scaling
+- **Comprehensive Logging**: Debug-level logging for troubleshooting
 
-**Ready for real Netbird integration testing!**
+## Architecture
 
-### ✅ Implemented Features
-- **FastAPI service** with `/health` and `/events` endpoints
-- **Flexible JSON parsing** handles any Netbird event structure  
-- **GELF transformation** with automatic field prefixing (`_NB_*`)
-- **Multi-tenant support** via `_NB_tenant` field injection
-- **Authentication system** (none, bearer, basic, custom header)
-- **Field discovery** logs unknown event structures for development
-- **Comprehensive error handling** with fallback processing
-- **Production configuration** via environment variables
-
-### 🧪 Testing Status
-**All tests passing (4/4):**
-- Health endpoint functionality ✅
-- Event processing with multiple JSON structures ✅  
-- 404 error handling ✅
-- Authentication disabled for development ✅
-
-## 🏗️ Architecture
-
-```mermaid
-graph LR
-    A[Netbird] -->|HTTP POST /events| B[NB_Streamer]
-    B -->|GELF/UDP| C[Graylog]
-    B -->|Field Discovery| D[Logs]
-    
-    B --> E[Multi-tenant<br/>_NB_tenant field]
-    B --> F[Field Prefixing<br/>_NB_* fields]
+```
+Netbird Events → NB_Streamer → GELF Format → Graylog Server
+                     ↓
+               Statistics & Monitoring
 ```
 
-### Event Processing Flow
-1. **Netbird** sends JSON events via HTTP POST
-2. **Authentication** validates request (configurable)
-3. **Field Discovery** logs known/unknown field structures  
-4. **GELF Transformation** converts to Graylog format
-5. **Tenant Injection** adds `_NB_tenant` for multi-tenancy
-6. **Graylog Transmission** sends via UDP/TCP
+## API Endpoints
 
-## 🛠️ Quick Start
+| Method | Endpoint | Description | Authentication |
+|--------|----------|-------------|----------------|
+| GET | `/health` | Health check endpoint | None |
+| GET | `/stats` | View event processing statistics | None |
+| POST | `/events` | Receive Netbird events | Required |
+| POST | `/stats/reset` | Reset statistics counters | Required |
 
-### Prerequisites
-- Python 3.10+
-- Git
+## Statistics Features
 
-### Installation
+The service provides comprehensive event processing statistics:
+
+- **Total Counters**: Received, forwarded, and failed events
+- **Success Rate**: Percentage of successfully processed events
+- **Per-tenant Breakdown**: Statistics grouped by tenant ID
+- **Per-level Breakdown**: Events categorized by log level
+- **Uptime Tracking**: Service uptime and last event timestamp
+- **Real-time Updates**: Statistics update with each processed event
+
+## Quick Start
+
+### 1. Clone the Repository
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/NB_Streamer.git
+git clone https://github.com/YOUR_USERNAME/NB_Streamer.git
 cd NB_Streamer
+```
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# or: venv\Scripts\activate  # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure environment
+### 2. Configuration
+Copy the sample environment file and customize:
+```bash
 cp .env.sample .env
-# Edit .env with your settings (see Configuration section)
-
-# Run service
-python -m src.main
+# Edit .env with your specific configuration
 ```
 
-The service will start on `http://localhost:8000`
+Required configuration:
+- `NB_TENANT_ID`: Your tenant identifier (e.g., "n2con")
+- `NB_GRAYLOG_HOST`: Graylog server IP (e.g., "10.0.1.244")
+- `NB_AUTH_TOKEN`: Authentication token for securing the API
 
-### Testing
+### 3. Docker Deployment (Recommended)
 ```bash
-# Run automated test suite
-python test_nb_streamer.py
+# Build the image
+docker build -t nb_streamer .
 
-# Manual health check
-curl http://localhost:8000/health
-
-# Send test event
-curl -X POST http://localhost:8000/events \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "peer_login",
-    "user": "john@example.com", 
-    "peer": "peer-123",
-    "timestamp": "2024-01-31T14:30:00Z"
-  }'
+# Run the container
+docker run -d --name nb_streamer --env-file .env -p 8001:8000 nb_streamer
 ```
 
-## ⚙️ Configuration
-
-### Required Environment Variables
+### 4. Verify Installation
 ```bash
-NB_GRAYLOG_HOST=your-graylog-server    # Graylog hostname
-NB_TENANT_ID=your-unique-tenant-id     # Tenant identifier
+# Check health
+curl http://localhost:8001/health
+
+# View statistics
+curl http://localhost:8001/stats
+
+# Monitor with included script
+./monitor_nb_streamer.sh
 ```
 
-### Optional Configuration
+## Monitoring
+
+### Built-in Monitoring Script
+Use the included monitoring script for real-time statistics:
+
 ```bash
-# Service Configuration
-NB_HOST=0.0.0.0                        # Bind address (default: 0.0.0.0)
-NB_PORT=8000                           # Service port (default: 8000)
-NB_DEBUG=false                         # Debug mode (default: false)
+# Single check
+./monitor_nb_streamer.sh
 
-# Graylog Configuration  
-NB_GRAYLOG_PORT=12201                  # GELF port (default: 12201)
-NB_GRAYLOG_PROTOCOL=udp                # Protocol: udp/tcp (default: udp)
-NB_COMPRESSION_ENABLED=true            # Compress messages (default: true)
-
-# Authentication (default: none - no auth required)
-NB_AUTH_TYPE=none                      # none, bearer, basic, header
-# NB_AUTH_TOKEN=your-bearer-token      # For bearer auth
-# NB_AUTH_USERNAME=username            # For basic auth  
-# NB_AUTH_PASSWORD=password            # For basic auth
-# NB_AUTH_HEADER_NAME=X-Custom-Auth    # For header auth
-# NB_AUTH_HEADER_VALUE=secret-value    # For header auth
-
-# Logging
-NB_LOG_LEVEL=INFO                      # DEBUG, INFO, WARNING, ERROR
+# Continuous monitoring
+./monitor_nb_streamer.sh --watch
 ```
 
-## 📡 API Endpoints
+### Docker Logs
+Monitor service logs:
+```bash
+# Follow logs
+docker logs -f nb_streamer
 
-### Health Check
-```http
-GET /health
-```
-**Response:**
-```json
-{
-  "status": "healthy",
-  "service": "nb_streamer", 
-  "version": "0.1.0",
-  "tenant_id": "your-tenant-id"
-}
+# View recent logs
+docker logs nb_streamer --tail 50
 ```
 
-### Event Processing
-```http
-POST /events
-Content-Type: application/json
+### Statistics API
+Access detailed statistics via HTTP:
+```bash
+# Get current statistics
+curl http://localhost:8001/stats | jq
 
-{
-  "type": "peer_login",
-  "timestamp": "2024-01-31T14:30:00Z",
-  "user": "john@example.com",
-  "peer": "peer-123-abc",
-  "network": "my-netbird-network",
-  "action": "login"
-}
+# Reset statistics (requires authentication)
+curl -X POST -H "Authorization: Bearer YOUR_TOKEN" http://localhost:8001/stats/reset
 ```
 
-**Response:**
-```json
-{
-  "status": "success",
-  "message": "Event processed and forwarded to Graylog",
-  "tenant_id": "your-tenant-id"
-}
-```
+## Configuration Reference
 
-## 📊 GELF Output Format
+### Environment Variables
 
-Events are transformed to GELF format with tenant and field prefixing:
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `NB_HOST` | Server bind address | `0.0.0.0` | No |
+| `NB_PORT` | Server port | `8000` | No |
+| `NB_TENANT_ID` | Tenant identifier | - | **Yes** |
+| `NB_GRAYLOG_HOST` | Graylog server IP | `localhost` | **Yes** |
+| `NB_GRAYLOG_PORT` | Graylog GELF port | `12201` | No |
+| `NB_GRAYLOG_PROTOCOL` | Protocol (udp/tcp) | `udp` | No |
+| `NB_AUTH_TYPE` | Authentication type | `bearer` | No |
+| `NB_AUTH_TOKEN` | Bearer token | - | **Yes** |
+| `NB_LOG_LEVEL` | Logging level | `INFO` | No |
 
+### Authentication Types
+
+1. **Bearer Token** (Recommended)
+   ```bash
+   NB_AUTH_TYPE=bearer
+   NB_AUTH_TOKEN=your_secure_token
+   ```
+
+2. **Basic Authentication**
+   ```bash
+   NB_AUTH_TYPE=basic
+   NB_AUTH_USERNAME=username
+   NB_AUTH_PASSWORD=password
+   ```
+
+3. **Custom Header**
+   ```bash
+   NB_AUTH_TYPE=header
+   NB_AUTH_HEADER_NAME=X-Custom-Auth
+   NB_AUTH_HEADER_VALUE=custom_value
+   ```
+
+## GELF Message Format
+
+Events are transformed into GELF format with:
+
+- **Standard Fields**: version, host, short_message, timestamp, level
+- **Tenant Tagging**: `_NB_tenant` field for multi-tenant filtering
+- **Netbird Fields**: All original fields prefixed with `_NB_`
+- **JSON Serialization**: Complex objects converted to JSON strings
+
+Example GELF message:
 ```json
 {
   "version": "1.1",
-  "host": "nb_streamer_your-tenant-id",
-  "short_message": "Netbird peer_login: login by john@example.com", 
-  "timestamp": 1706711400.0,
+  "host": "nb_streamer",
+  "short_message": "Netbird user_login",
+  "timestamp": 1643723400.0,
   "level": 6,
-  "facility": "nb_streamer",
-  "_NB_tenant": "your-tenant-id",
-  "_NB_type": "peer_login",
-  "_NB_user": "john@example.com",
-  "_NB_peer": "peer-123-abc",
-  "_NB_network": "my-netbird-network",
-  "_NB_action": "login"
+  "_NB_tenant": "n2con",
+  "_NB_ID": "event-123",
+  "_NB_InitiatorID": "user@example.com",
+  "_NB_Message": "User login successful"
 }
 ```
 
-**Key Features:**
-- **Tenant identification:** `_NB_tenant` field for multi-tenant deployments
-- **Field prefixing:** All Netbird fields prefixed with `_NB_` 
-- **Automatic discovery:** Unknown fields are captured and logged
-- **Timestamp handling:** Automatic conversion of ISO timestamps
+## Development
 
-## 🔧 Production Deployment
-
-### 1. Environment Setup
+### Local Development
 ```bash
-# Production environment variables
-NB_GRAYLOG_HOST=graylog.yourcompany.com
-NB_TENANT_ID=production_tenant_name
-NB_AUTH_TYPE=bearer
-NB_AUTH_TOKEN=your-secure-token
-NB_LOG_LEVEL=WARNING
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+
+# Run locally
+python -m src.main
 ```
 
-### 2. Netbird Configuration
-Configure Netbird to send events to your NB_Streamer instance:
-```
-POST https://your-nb-streamer-host:8000/events
-```
+### Testing
+```bash
+# Run tests
+pytest
 
-### 3. Graylog Setup
-- Configure GELF UDP input on port 12201
-- Create extractors for `_NB_*` fields if needed
-- Set up dashboards filtering by `_NB_tenant`
+# Run with coverage
+pytest --cov=src
 
-## 🔍 Field Discovery
-
-The service automatically discovers and logs field structures for development:
-
-```
-INFO - Event contains known fields: ['type', 'timestamp', 'user', 'peer']
-DEBUG - All event fields: ['type', 'timestamp', 'user', 'peer', 'custom_field', 'metadata']
+# Test specific event
+curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"ID":"test","Message":"Test event"}' \
+     http://localhost:8001/events
 ```
 
-This helps understand what Netbird actually sends, allowing you to:
-- **Identify new field types** Netbird introduces
-- **Adjust processing logic** based on real event structures  
-- **Create Graylog extractors** for important fields
+## Production Deployment
 
-## 📁 Project Structure
-
-```
-NB_Streamer/
-├── src/
-│   ├── main.py              # FastAPI application
-│   ├── config.py            # Configuration management
-│   ├── models/
-│   │   ├── netbird.py       # Netbird event models
-│   │   └── gelf.py          # GELF message models
-│   └── services/
-│       ├── auth.py          # Authentication
-│       ├── transformer.py   # Event transformation
-│       └── graylog.py       # Graylog integration
-├── docs/
-│   ├── PHASE1_COMPLETE.md   # Implementation status
-│   └── phase0_report.md     # Planning phase summary
-├── test_nb_streamer.py      # Test suite
-├── requirements.txt         # Python dependencies
-└── .env.sample             # Configuration template
+### Docker Compose (Recommended)
+```yaml
+version: '3.8'
+services:
+  nb_streamer:
+    build: .
+    ports:
+      - "8001:8000"
+    environment:
+      - NB_TENANT_ID=your_tenant
+      - NB_GRAYLOG_HOST=your_graylog_ip
+      - NB_AUTH_TOKEN=your_secure_token
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 ```
 
-## 🤝 Contributing
+### Kubernetes Deployment
+See `k8s/` directory for Kubernetes manifests.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines, branching strategy, and code standards.
+### Security Considerations
+- Use strong, unique authentication tokens
+- Enable HTTPS in production (reverse proxy recommended)
+- Monitor failed authentication attempts
+- Regularly rotate authentication credentials
+- Network-level access controls to Graylog server
 
-## 📄 License
+## Troubleshooting
+
+### Common Issues
+
+1. **Connection to Graylog Failed**
+   - Verify `NB_GRAYLOG_HOST` and `NB_GRAYLOG_PORT`
+   - Test network connectivity: `nc -u -v graylog_host 12201`
+   - Check Graylog server logs
+
+2. **Authentication Errors**
+   - Verify `NB_AUTH_TOKEN` matches client configuration
+   - Check authentication type is correctly set
+   - Review service logs for auth failures
+
+3. **Events Not Appearing in Graylog**
+   - Check Graylog inputs are configured for GELF UDP
+   - Verify tenant filtering: search for `_NB_tenant:your_tenant`
+   - Review Graylog processing pipeline
+
+### Log Analysis
+```bash
+# Service errors
+docker logs nb_streamer 2>&1 | grep ERROR
+
+# Authentication failures
+docker logs nb_streamer 2>&1 | grep "authentication"
+
+# Event processing
+docker logs nb_streamer 2>&1 | grep "Successfully forwarded"
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Update documentation
+6. Submit a pull request
+
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## Support
 
-- **Documentation:** See `/docs` folder for detailed technical documentation
-- **Issues:** Report issues via GitHub Issues
-- **Testing:** Run `python test_nb_streamer.py` to validate your setup
+For support and questions:
+- Create an issue on GitHub
+- Check the troubleshooting section
+- Review the logs for error details
 
----
+## Changelog
 
-**Status:** Phase 1 Complete ✅ | **Next:** Real Netbird Integration Testing 🚀
+### v0.2.0 (2025-07-31)
+- Added comprehensive event statistics tracking
+- Implemented `/stats` and `/stats/reset` endpoints
+- Added monitoring script (`monitor_nb_streamer.sh`)
+- Enhanced error handling and failure tracking
+- Improved documentation and deployment guides
+- Added per-tenant and per-level event breakdowns
+- Integrated real-time success rate calculation
+
+### v0.1.0 (Initial Release)
+- Basic Netbird event reception and GELF transformation
+- Multi-tenant support with tenant tagging
+- Flexible authentication (Bearer, Basic, Custom header)
+- Docker containerization
+- Health check endpoint
+- Comprehensive logging and debugging
