@@ -1,10 +1,10 @@
 # IP and Port Separation Guide
 
-NB_Streamer v0.2.5 introduces IP and port separation for fields with IP:port combinations.
+NB_Streamer v0.2.6 introduces IP and port separation for fields with IP:port combinations.
 
 ## Overview
 
-Netbird events often have fields with combined IP and port values (e.g., `source_addr`, `destination_addr`). Version v0.2.5 parses these fields and splits them into separate IP and port fields with `_NB_` prefixing for better searchability and analysis in Graylog.
+Netbird events often have fields with combined IP and port values (e.g., `source_addr`, `destination_addr`). Version v0.2.6 parses these fields and splits them into separate IP and port fields with `_NB_` prefixing for better searchability and analysis in Graylog.
 
 ## Key Enhancements
 

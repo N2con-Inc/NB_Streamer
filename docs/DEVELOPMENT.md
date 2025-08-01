@@ -39,9 +39,9 @@ docker-compose -f docker-compose.dev.yml up --build -d
 
 Once the container is running:
 
-- **NB_Streamer API**: http://localhost:8000
-- **API Documentation**: http://localhost:8000/docs
-- **Health Check**: http://localhost:8000/health
+- **NB_Streamer API**: http://localhost:8001
+- **API Documentation**: http://localhost:8001/docs
+- **Health Check**: http://localhost:8001/health
 
 ### 4. Development Workflow
 

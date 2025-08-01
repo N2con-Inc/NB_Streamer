@@ -1,8 +1,8 @@
-# NB_Streamer v0.2.5 Deployment Guide
+# NB_Streamer v0.2.6 Deployment Guide
 
-This guide covers deployment of NB_Streamer v0.2.5 with the new statistics and monitoring features.
+This guide covers deployment of NB_Streamer v0.2.6 with the new statistics and monitoring features.
 
-## What's New in v0.2.5
+## What's New in v0.2.6
 
 - **Event Statistics**: Real-time tracking of event processing metrics
 - **Monitoring Endpoints**: New `/stats` and `/stats/reset` API endpoints
@@ -194,7 +194,7 @@ echo "nb_streamer_events_failed $FAILED"
 echo "nb_streamer_success_rate $SUCCESS_RATE"
 ```
 
-## Troubleshooting v0.2.5
+## Troubleshooting v0.2.6
 
 ### Statistics Not Updating
 - Check service logs: `docker logs nb_streamer`
@@ -227,7 +227,7 @@ If upgrading from v0.1.0:
 
 ## Docker Compose Update
 
-Updated `docker-compose.yml` for v0.2.5:
+Updated `docker-compose.yml` for v0.2.6:
 
 ```yaml
 version: '3.8'
@@ -259,7 +259,7 @@ services:
 
 ## Support
 
-For v0.2.5 specific issues:
+For v0.2.6 specific issues:
 - Check the new statistics for error patterns
 - Use the monitoring script for real-time diagnostics
 - Review the CHANGELOG.md for detailed changes

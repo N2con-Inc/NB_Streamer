@@ -49,7 +49,7 @@ python -m src.main
 python test_nb_streamer.py
 
 # Manual test
-curl http://localhost:8000/health
+curl http://localhost:8001/health
 ```
 
 ### 4. Configure Netbird Integration

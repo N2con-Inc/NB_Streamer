@@ -13,7 +13,7 @@ NB_Streamer has been successfully developed, tested, and deployed as a productio
 - **Graylog Integration**: UDP/TCP transmission to configurable Graylog servers
 - **Production Deployment**: Docker containerization with environment configuration
 
-### ✅ Enhanced Features (v0.2.5)
+### ✅ Enhanced Features (v0.2.6)
 - **Advanced Field Flattening**: Recursive parsing of nested structures into individual searchable fields
 - **Real-time Statistics**: Comprehensive event processing metrics and monitoring
 - **Enhanced Authentication**: Multiple authentication methods with secure token handling
@@ -192,7 +192,7 @@ _NB_meta_user_info_username:"admin"       # Admin user actions
 ### GitHub Repository
 - **URL**: https://github.com/N2con-Inc/NB_Streamer
 - **Branch**: `main` (production-ready)
-- **Latest Release**: v0.2.5
+- **Latest Release**: v0.2.6
 
 ### Operational Commands
 ```bash

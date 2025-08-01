@@ -31,7 +31,7 @@ docker-compose up -d
 ### 3️⃣ Test Your Deployment
 ```bash
 # Health check
-curl http://localhost:8000/health
+curl http://localhost:8001/health
 
 # Send test event
 cd examples/
@@ -39,7 +39,7 @@ cd examples/
 ```
 
 ### 4️⃣ Configure Netbird
-Point Netbird webhook to: `http://your-server:8000/events`
+Point Netbird webhook to: `http://your-server:8001/events`
 
 **That's it!** Your Netbird events are now flowing to Graylog with multi-tenant support. 🎉
 
@@ -81,7 +81,7 @@ Netbird → NB_Streamer → Graylog
 **Output (GELF to Graylog):**
 ```json
 {
-  "version": "0.2.5",
+  "version": "0.2.6",
   "host": "nb_streamer_tenant_123",
   "short_message": "Netbird peer_login by john@example.com",
   "_NB_tenant": "tenant_123",
@@ -130,7 +130,7 @@ docker-compose up -d
 cd dev/
 docker-compose -f docker-compose.dev.yml up -d
 
-# Access NB_Streamer: http://localhost:8000
+# Access NB_Streamer: http://localhost:8001
 ```
 
 ### Python Virtual Environment
@@ -164,10 +164,10 @@ python scripts/test_nb_streamer.py
 ### Manual Testing
 ```bash
 # Health check
-curl http://localhost:8000/health
+curl http://localhost:8001/health
 
 # Send test event (see examples/)
-curl -X POST http://localhost:8000/events \
+curl -X POST http://localhost:8001/events \
   -H "Content-Type: application/json" \
   -d @examples/test-event.json
 ```
@@ -180,7 +180,7 @@ GET /health
 {
   "status": "healthy",
   "service": "nb_streamer",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "tenant_id": "your-tenant-id"
 }
 ```

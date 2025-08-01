@@ -1,6 +1,6 @@
 # Netbird Event Field Flattening Guide
 
-NB_Streamer v0.2.5 introduces advanced field flattening for Netbird events, making nested data structures easily searchable in Graylog.
+NB_Streamer v0.2.6 introduces advanced field flattening for Netbird events, making nested data structures easily searchable in Graylog.
 
 ## Overview
 
@@ -239,7 +239,7 @@ If you were previously using the JSON string format:
 _NB_meta: "{\"source_addr\":\"10.0.1.100\",\"port\":22}"
 ```
 
-### After (v0.2.5)
+### After (v0.2.6)
 ```
 _NB_meta_source_addr: "10.0.1.100"
 _NB_meta_port: "22"

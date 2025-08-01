@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.2.6] - 2025-08-01
+
+### Fixed
+- **CI/CD Pipeline**: Resolved GitHub Actions failures by fixing linting issues and improving workflow
+- **Code Quality**: Applied consistent formatting with black and isort across entire codebase
+- **Port Configuration**: Updated documentation to reflect port 8001 usage (avoiding Portainer conflicts)
+- **Dependencies**: Updated to newer compatible versions for better stability
+
+### Changed
+- **Maintenance Process**: Implemented comprehensive maintenance logging and documentation
+- **Version Management**: Standardized version references across all project files
+- **CI Workflow**: Simplified and hardened automated testing and build process
+- **Documentation**: Updated deployment guides and README with current port and version info
+
+### Added
+- **Maintenance Log**: New tracking system for deployment and update activities
+- **Linting Standards**: Enforced code quality standards with flake8, black, and isort
+- **Version Audit**: Comprehensive version consistency across project files
+
+
 ## [0.2.5] - 2025-08-01
 
 ### Changed
