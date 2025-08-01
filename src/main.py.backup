@@ -10,7 +10,6 @@ from .config import config
 from .services.auth import AuthService
 from .services.transformer import TransformerService
 from .services.graylog import GraylogService
-from .services.stats import event_stats
 
 
 # Configure logging
@@ -53,7 +52,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="NB_Streamer",
     description="Netbird Event Streaming Service to Graylog",
-    version="0.1.1",
+    version="0.1.0",
     lifespan=lifespan
 )
 
@@ -64,50 +63,9 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "nb_streamer",
-        "version": "0.1.1",
+        "version": "0.1.0",
         "tenant_id": config.tenant_id
     }
-
-
-@app.get("/stats")
-async def get_statistics():
-    """Get event processing statistics."""
-    try:
-        stats = event_stats.get_stats()
-        return {
-            "status": "success",
-            "statistics": stats
-        }
-    except Exception as e:
-        logger.error(f"Failed to get statistics: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve statistics"
-        )
-
-
-@app.post("/stats/reset")
-async def reset_statistics(request: Request):
-    """Reset event processing statistics (requires authentication)."""
-    try:
-        # Authenticate request
-        await auth_service.authenticate(request)
-        
-        # Reset statistics
-        event_stats.reset_stats()
-        
-        return {
-            "status": "success",
-            "message": "Statistics reset successfully"
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to reset statistics: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to reset statistics"
-        )
 
 
 @app.post("/events")
@@ -121,21 +79,15 @@ async def receive_events(request: Request):
     3. Transforms it to GELF format
     4. Sends it to Graylog
     """
-    tenant_id = config.tenant_id
-    
     try:
         # Authenticate request
         await auth_service.authenticate(request)
-        
-        # Track received event
-        event_stats.increment_received(tenant_id)
         
         # Parse JSON body
         try:
             event_data = await request.json()
         except Exception as e:
             logger.error(f"Failed to parse JSON: {e}")
-            event_stats.increment_failed(tenant_id)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid JSON in request body"
@@ -151,15 +103,9 @@ async def receive_events(request: Request):
         # Send to Graylog
         try:
             graylog_service.send_gelf_message(gelf_message)
-            
-            # Track successful forwarding
-            level = str(getattr(gelf_message, 'level', 'unknown'))
-            event_stats.increment_forwarded(tenant_id, level)
-            
-            logger.info(f"Successfully forwarded event to Graylog for tenant {tenant_id}")
+            logger.info(f"Successfully forwarded event to Graylog for tenant {config.tenant_id}")
         except Exception as e:
             logger.error(f"Failed to send message to Graylog: {e}")
-            event_stats.increment_failed(tenant_id)
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="Failed to forward event to Graylog"
@@ -169,14 +115,13 @@ async def receive_events(request: Request):
         return {
             "status": "success",
             "message": "Event processed and forwarded to Graylog",
-            "tenant_id": tenant_id
+            "tenant_id": config.tenant_id
         }
     
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Unexpected error processing event: {e}")
-        event_stats.increment_failed(tenant_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error processing event"
@@ -190,12 +135,10 @@ async def not_found_handler(request: Request, exc):
         status_code=404,
         content={
             "status": "error",
-            "message": "Endpoint not found. Available endpoints listed below.",
+            "message": "Endpoint not found. Use POST /events to send Netbird events.",
             "available_endpoints": {
-                "POST /events": "Send Netbird events (authenticated)",
-                "GET /health": "Health check",
-                "GET /stats": "Get event processing statistics",
-                "POST /stats/reset": "Reset statistics (authenticated)"
+                "POST /events": "Send Netbird events",
+                "GET /health": "Health check"
             }
         }
     )

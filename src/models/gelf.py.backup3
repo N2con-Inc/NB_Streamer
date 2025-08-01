@@ -215,67 +215,32 @@ class GELFMessage(BaseModel):
         """
         # Generate short message if not provided
         if not short_message:
-            # Try to use the actual Message field from Netbird events
-            if "Message" in event_data and event_data["Message"]:
-                short_message = str(event_data["Message"]).strip()
+            event_type = event_data.get("type", event_data.get("event_type", "unknown"))
+            action = event_data.get("action", "")
+            user = event_data.get("user", "")
+            if action and user:
+                short_message = f"Netbird {event_type}: {action} by {user}"
+            elif event_type:
+                short_message = f"Netbird {event_type}"
             else:
-                # Fallback to constructing from available fields
-                event_type = event_data.get("type", event_data.get("event_type", ""))
-                action = event_data.get("action", "")
-                user = event_data.get("user", event_data.get("InitiatorID", ""))
-                
-                if action and user:
-                    short_message = f"Netbird {event_type}: {action} by {user}"
-                elif event_type:
-                    short_message = f"Netbird {event_type}"
-                elif user:
-                    short_message = f"Netbird event by {user}"
-                else:
-                    short_message = "Netbird event"
+                short_message = "Netbird event"
         
-        # Handle timestamp - intelligently choose between timestamp fields
+        # Handle timestamp
         timestamp = None
-        
-        # Try Timestamp field first (capitalized) as it often contains the actual timestamp
-        timestamp_field = event_data.get("Timestamp")
-        lowercase_timestamp_field = event_data.get("timestamp")
-        
-        # Function to validate if a value looks like a timestamp
-        def is_valid_timestamp_value(value):
-            if isinstance(value, (int, float)):
-                return True
-            if isinstance(value, str):
-                # Check if it looks like an ISO timestamp
-                return ("T" in value and (":" in value or "Z" in value)) or value.replace(".", "").replace("-", "").isdigit()
-            return False
-        
-        # Choose the field that actually contains timestamp data
-        chosen_ts_field = None
-        chosen_ts_field_key = None
-        if timestamp_field and is_valid_timestamp_value(timestamp_field):
-            chosen_ts_field_key = "Timestamp"
-            chosen_ts_field = timestamp_field
-        elif lowercase_timestamp_field and is_valid_timestamp_value(lowercase_timestamp_field):
-            chosen_ts_field_key = "timestamp"
-            chosen_ts_field = lowercase_timestamp_field
-        
-        if chosen_ts_field:
-            if isinstance(chosen_ts_field, str):
+        if "timestamp" in event_data:
+            ts_value = event_data["timestamp"]
+            if isinstance(ts_value, str):
                 try:
                     # Try parsing ISO format
-                    dt = datetime.fromisoformat(chosen_ts_field.replace("Z", "+00:00"))
+                    dt = datetime.fromisoformat(ts_value.replace("Z", "+00:00"))
                     timestamp = dt.timestamp()
                 except ValueError:
                     # If parsing fails, use current time
                     timestamp = time.time()
-            elif isinstance(chosen_ts_field, (int, float)):
-                timestamp = chosen_ts_field
-            elif isinstance(chosen_ts_field, datetime):
-                timestamp = chosen_ts_field.timestamp()
-        
-        # If no valid timestamp found, use current time
-        if timestamp is None:
-            timestamp = time.time()
+            elif isinstance(ts_value, (int, float)):
+                timestamp = ts_value
+            elif isinstance(ts_value, datetime):
+                timestamp = ts_value.timestamp()
         
         # Convert level to syslog level if it's a string
         level = 6  # Default INFO
@@ -307,17 +272,8 @@ class GELFMessage(BaseModel):
         
         # Add all enhanced fields with NB_ prefix
         for key, value in enhanced_data.items():
-            # Skip timestamp and level fields that are used for standard GELF fields
-            # But preserve timestamp fields that contain non-timestamp data as custom fields
-            skip_field = False
-            if key in ["level", "Timestamp"]:
-                skip_field = True
-            elif key == "timestamp":
-                # Only skip if this was the field we used for the GELF timestamp
-                if chosen_ts_field_key == key:
-                    skip_field = True
-            
-            if not skip_field:
+            # Skip timestamp and level as they're handled above
+            if key not in ["timestamp", "level", "Timestamp"]:
                 # Ensure we have a string value for GELF
                 if isinstance(value, (dict, list)):
                     value = json.dumps(value)
