@@ -1,0 +1,16 @@
+{
+  "type": "peer_login",  
+  "timestamp": "2025-01-30T12:00:00Z",
+  "user": "john@example.com",
+  "peer": "peer-abc-123",
+  "network": "corporate-vpn",
+  "action": "connected",
+  "ip_address": "10.0.0.15",
+  "location": "New York, NY",
+  "device": "laptop-corporate-001",
+  "metadata": {
+    "connection_duration": 0,
+    "bandwidth_usage": 0,
+    "authentication_method": "sso"
+  }
+}

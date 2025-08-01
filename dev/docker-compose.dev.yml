@@ -1,0 +1,37 @@
+version: '3.8'
+
+# Development environment for NB_Streamer
+# Assumes external Graylog server is available
+
+services:
+  nb-streamer-dev:
+    build:
+      context: ..
+      dockerfile: dev/Dockerfile.dev
+    container_name: nb-streamer-dev
+    ports:
+      - "8000:8000"  # NB_Streamer API
+    volumes:
+      - ..:/app
+      - /app/venv  # Exclude venv for better performance
+    environment:
+      # Development configuration
+      - NB_HOST=0.0.0.0
+      - NB_PORT=8000
+      - NB_DEBUG=true
+      - NB_LOG_LEVEL=DEBUG
+      - NB_GRAYLOG_HOST=${NB_GRAYLOG_HOST:-your-graylog-server.com}
+      - NB_TENANT_ID=${NB_TENANT_ID:-development_tenant}
+      - NB_AUTH_TYPE=${NB_AUTH_TYPE:-none}
+    env_file:
+      - ../.env
+    restart: unless-stopped
+    command: >
+      sh -c "
+        pip install -r dev/requirements-dev.txt &&
+        python -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+# Usage:
+# 1. Copy .env.example to .env and configure your external Graylog
+# 2. cd dev && docker-compose -f docker-compose.dev.yml up

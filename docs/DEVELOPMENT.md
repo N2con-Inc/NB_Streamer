@@ -1,6 +1,6 @@
 # NB_Streamer Development Environment Setup
 
-This document provides comprehensive instructions for setting up the NB_Streamer development environment using Docker Compose with an integrated Graylog stack for testing.
+This document provides comprehensive instructions for setting up the NB_Streamer development environment. The service connects to your existing Graylog infrastructure for event forwarding.
 
 ## Quick Start (Docker Compose - Recommended)
 
@@ -8,7 +8,7 @@ This document provides comprehensive instructions for setting up the NB_Streamer
 
 - **Docker** (v20.10+) and **Docker Compose** (v2.0+)
 - **Git** for version control
-- At least **4GB RAM** available for containers
+- **Access to existing Graylog server** (for testing events)
 
 ### 1. Clone and Setup
 
@@ -20,28 +20,28 @@ cd NB_Streamer
 # Copy environment configuration
 cp .env.sample .env
 
-# Edit .env file with your preferred settings
-# The defaults work for development
+# Edit .env file with your Graylog server details
+# Configure NB_GRAYLOG_HOST and NB_TENANT_ID at minimum
 ```
 
 ### 2. Build and Start Development Environment
 
 ```bash
-# Build and start all services (NB_Streamer + Graylog stack)
-docker compose up --build
+# Build and start NB_Streamer development service
+cd dev/
+docker-compose -f docker-compose.dev.yml up --build
 
 # Or run in background
-docker compose up --build -d
+docker-compose -f docker-compose.dev.yml up --build -d
 ```
 
 ### 3. Access Development Services
 
-Once all containers are running:
+Once the container is running:
 
-- **JupyterLab**: http://localhost:8888 (no password required)
-- **NB_Streamer API**: http://localhost:8080
-- **API Documentation**: http://localhost:8080/docs
-- **Graylog Web Interface**: http://localhost:9000 (admin/admin)
+- **NB_Streamer API**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
+- **Health Check**: http://localhost:8000/health
 
 ### 4. Development Workflow
 
@@ -101,7 +101,7 @@ curl -X POST http://localhost:8080/events \
   }'
 ```
 
-Check Graylog at http://localhost:9000 to see the processed events.
+Check your Graylog server to see the processed events with _NB_tenant field.
 
 ## Alternative Setup (Python Virtual Environment)
 
@@ -212,8 +212,8 @@ AUTH_TYPE=none  # Options: none, bearer, basic, custom
 AUTH_SECRET=your-secret-here
 AUTH_CUSTOM_HEADER=X-Custom-Auth
 
-# Graylog Configuration
-GRAYLOG_HOST=localhost  # Use 'graylog' for Docker Compose
+# Graylog Configuration (your existing Graylog server)
+GRAYLOG_HOST=your-graylog-server.com
 GRAYLOG_PORT=12201
 GRAYLOG_PROTOCOL=udp
 
@@ -223,12 +223,9 @@ DEFAULT_HOST=nb-streamer
 
 ### Docker Compose Environment
 
-When using Docker Compose, the following services are available:
+When using Docker Compose, the following service is available:
 
-- **nb-streamer-dev**: Main development container
-- **graylog**: Log analysis platform
-- **mongodb**: Graylog data store
-- **elasticsearch**: Graylog search backend
+- **nb-streamer-dev**: Main development container with auto-reload
 
 ## Development Commands
 
@@ -343,9 +340,10 @@ lsof -i :9000
 ```
 
 **Graylog not receiving events:**
-1. Check Graylog is running: http://localhost:9000
-2. Verify GRAYLOG_HOST in .env (should be 'graylog' for Docker Compose)
-3. Check container networking: `docker compose logs graylog`
+1. Verify your Graylog server is accessible
+2. Check GRAYLOG_HOST in .env points to correct server
+3. Test connectivity: `nc -u your-graylog-host 12201`
+4. Verify Graylog GELF input is configured and running
 
 **Permission issues:**
 ```bash
@@ -355,15 +353,13 @@ sudo chown -R $USER:$USER .
 
 ### Memory Requirements
 
-The full development stack requires approximately:
-- **NB_Streamer**: ~100MB
-- **Graylog**: ~1GB
-- **Elasticsearch**: ~1.5GB
-- **MongoDB**: ~200MB
+The development environment requires:
+- **NB_Streamer**: ~100MB RAM
+- **Docker overhead**: ~50MB
 
-**Total: ~3GB RAM minimum**
+**Total: ~150MB RAM** - Very lightweight!
 
-For memory-constrained environments, use the Python virtual environment setup instead.
+Perfect for development on any modern machine.
 
 ## Production Deployment
 
@@ -382,7 +378,7 @@ See deployment documentation for production setup instructions.
 
 1. **Start Development**: Follow the Quick Start guide above
 2. **Read Architecture**: Review `ARCHITECTURE.md` for system design
-3. **Implement Features**: Begin with Phase 1 tasks from `PROJECT.md`
+3. **Implement Features**: Add new features or improvements to the existing implementation
 4. **Write Tests**: Add tests as you develop features
 5. **Documentation**: Update docs as you add functionality
 

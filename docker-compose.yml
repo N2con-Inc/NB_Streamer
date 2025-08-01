@@ -1,105 +1,32 @@
 version: '3.8'
 
+# Simple deployment for NB_Streamer
+# Connects to your existing Graylog infrastructure
+
 services:
-  nb-streamer-dev:
+  nb-streamer:
     build:
       context: .
-      dockerfile: Dockerfile.dev
-    container_name: nb-streamer-dev
+      dockerfile: Dockerfile
+    container_name: nb-streamer
     ports:
-      - "8080:8080"  # NB_Streamer API
-      - "8888:8888"  # JupyterLab
-    volumes:
-      - .:/app
-      - /app/.git  # Exclude .git for better performance
-    environment:
-      # NB_Streamer configuration
-      - PORT=8080
-      - AUTH_TYPE=none
-      - GRAYLOG_HOST=graylog
-      - GRAYLOG_PORT=12201
-      - GRAYLOG_PROTOCOL=udp
-      - DEFAULT_HOST=nb-streamer-dev
-      # Development settings
-      - PYTHONPATH=/app
-      - JUPYTER_ENABLE_LAB=yes
+      - "${NB_PORT:-8000}:8000"
     env_file:
       - .env
-    networks:
-      - nb-streamer-net
-    depends_on:
-      - graylog
     restart: unless-stopped
-    command: >
-      sh -c "
-        # Install pre-commit hooks
-        pre-commit install --hook-type pre-commit --hook-type pre-push &&
-        # Start JupyterLab in background
-        jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password='' &
-        # Wait for development or start the app
-        tail -f /dev/null
-      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # Mock Graylog server for development
-  graylog:
-    image: graylog/graylog:5.2
-    container_name: nb-streamer-graylog
-    environment:
-      # CHANGE ME (must be at least 16 characters)!
-      - GRAYLOG_PASSWORD_SECRET=somepasswordpepper
-      # Password: admin
-      - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
-      - GRAYLOG_HTTP_EXTERNAL_URI=http://127.0.0.1:9000/
-    entrypoint: /usr/bin/tini -- wait-for-it elasticsearch:9200 --  /docker-entrypoint.sh
-    networks:
-      - nb-streamer-net
-    restart: unless-stopped
-    depends_on:
-      - mongodb
-      - elasticsearch
-    ports:
-      # Graylog web interface and REST API
-      - "9000:9000"
-      # Syslog TCP
-      - "1514:1514"
-      # Syslog UDP
-      - "1514:1514/udp"
-      # GELF TCP
-      - "12201:12201"
-      # GELF UDP
-      - "12201:12201/udp"
-
-  # MongoDB for Graylog
-  mongodb:
-    image: mongo:6.0
-    container_name: nb-streamer-mongodb
-    networks:
-      - nb-streamer-net
-    restart: unless-stopped
-    volumes:
-      - mongo_data:/data/db
-
-  # Elasticsearch for Graylog
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2
-    container_name: nb-streamer-elasticsearch
-    environment:
-      - http.host=0.0.0.0
-      - transport.host=localhost
-      - network.host=0.0.0.0
-      - "ES_JAVA_OPTS=-Dlog4j2.formatMsgNoLookups=true -Xms512m -Xmx512m"
-    networks:
-      - nb-streamer-net
-    restart: unless-stopped
-    volumes:
-      - es_data:/usr/share/elasticsearch/data
-
-networks:
-  nb-streamer-net:
-    driver: bridge
-
-volumes:
-  mongo_data:
-    driver: local
-  es_data:
-    driver: local
+# Quick Start:
+# 1. Copy .env.example to .env
+# 2. Configure NB_GRAYLOG_HOST and NB_TENANT_ID
+# 3. docker-compose up -d

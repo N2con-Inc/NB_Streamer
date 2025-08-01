@@ -166,7 +166,7 @@ curl http://your-host:8000/health
 {
   "status": "healthy",
   "service": "nb_streamer",
-  "version": "0.1.0", 
+  "version": "0.1.1", 
   "tenant_id": "your-tenant-id"
 }
 ```
