@@ -1,9 +1,32 @@
 # Changelog
 
+## [0.2.5] - 2025-08-01
+
+### Changed
+- **Version Consistency**: Standardized all version references across project to maintain consistency
+- **Documentation Updates**: Updated all guides and documentation to reflect current version
+- **Project Maintenance**: Comprehensive version audit and cleanup
+
+### Fixed
+- **Version References**: Fixed inconsistent version numbers across multiple files
+- **Documentation Alignment**: Ensured all documentation reflects the correct current version
+
+
 All notable changes to NB_Streamer will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.2.4] - 2025-07-31
+
+### Fixed
+- **Timestamp Column Display**: Fixed timestamp column display issues in Graylog interface
+- **Enhanced Graylog Integration**: Improved event formatting and field mapping for better visibility
+
+### Enhanced
+- **Event Processing**: Optimized event transformation pipeline
+- **Error Handling**: Improved error handling and logging throughout the application
+
 
 ## [0.2.0] - 2025-07-31
 

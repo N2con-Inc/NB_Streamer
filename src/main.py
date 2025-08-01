@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="NB_Streamer",
     description="Netbird Event Streaming Service to Graylog",
-    version="0.1.1",
+    version="0.2.5",
     lifespan=lifespan
 )
 
@@ -64,7 +64,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "nb_streamer",
-        "version": "0.1.1",
+        "version": "0.2.5",
         "tenant_id": config.tenant_id
     }
 

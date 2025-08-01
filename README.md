@@ -81,7 +81,7 @@ Netbird → NB_Streamer → Graylog
 **Output (GELF to Graylog):**
 ```json
 {
-  "version": "1.1",
+  "version": "0.2.5",
   "host": "nb_streamer_tenant_123",
   "short_message": "Netbird peer_login by john@example.com",
   "_NB_tenant": "tenant_123",
@@ -180,7 +180,7 @@ GET /health
 {
   "status": "healthy",
   "service": "nb_streamer",
-  "version": "0.1.1",
+  "version": "0.2.5",
   "tenant_id": "your-tenant-id"
 }
 ```
