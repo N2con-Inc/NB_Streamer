@@ -24,7 +24,7 @@ jobs:
         python -m venv venv
         source venv/bin/activate
         pip install --upgrade pip
-        pip install -r requirements.txt -r dev/requirements-dev.txt
+        pip install -r requirements.txt -r requirements-dev.txt
 
     - name: Lint with flake8
       run: |
@@ -58,18 +58,18 @@ jobs:
         python -m venv venv
         source venv/bin/activate
         pip install --upgrade pip
-        pip install -r requirements.txt -r dev/requirements-dev.txt
+        pip install -r requirements.txt -r requirements-dev.txt
 
     - name: Type check with mypy
       run: |
         source venv/bin/activate
-        mypy src --ignore-missing-imports
+        mypy src
 
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.11']
     
     steps:
     - name: Checkout code
@@ -86,22 +86,22 @@ jobs:
         python -m venv venv
         source venv/bin/activate
         pip install --upgrade pip
-        pip install -r requirements.txt -r dev/requirements-dev.txt
+        pip install -r requirements.txt -r requirements-dev.txt
 
     - name: Run unit tests
       run: |
         source venv/bin/activate
-        pytest tests/unit -v --cov=src --cov-report=xml --cov-report=term-missing || true
+        pytest tests/unit -v --cov=src --cov-report=xml --cov-report=term-missing
 
     - name: Run integration tests
       run: |
         source venv/bin/activate
-        pytest tests/integration -v || echo "Integration tests skipped or failed"
+        pytest tests/integration -v
 
     - name: Run E2E tests
       run: |
         source venv/bin/activate
-        pytest tests/e2e -v || echo "E2E tests skipped or failed"
+        pytest tests/e2e -v
 
     - name: Upload coverage reports to Codecov
       if: matrix.python-version == '3.11'
@@ -133,19 +133,7 @@ jobs:
 
     - name: Test Docker image
       run: |
-        docker run --rm -d -p 8080:8000 --name test_container nb_streamer:latest
-        sleep 15
-        # Retry health check a few times
-        for i in {1..3}; do
-          if curl -f http://localhost:8080/health; then
-            echo "Health check passed"
-            docker stop test_container
-            exit 0
-          fi
-          echo "Health check attempt $i failed, retrying..."
-          sleep 5  
-        done
-        echo "Health check failed after 3 attempts"
-        docker logs test_container
+        docker run --rm -d -p 8080:8080 --name test_container nb_streamer:latest
+        sleep 10
+        curl -f http://localhost:8080/health || exit 1
         docker stop test_container
-        exit 1
