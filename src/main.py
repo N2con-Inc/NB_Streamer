@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
     logger.info("Starting NB_Streamer v0.3.0")
     
     # Validate configuration at startup
-    config.validate_startup_configuration()
+    # config.validate_startup_configuration()  # TODO: Add this method if needed
     
     logger.info(
         f"Config: graylog_host={config.graylog_host}, "
