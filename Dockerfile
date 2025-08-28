@@ -1,4 +1,4 @@
-# Multi-stage production container for NB_Streamer v0.3.0
+# Multi-stage production container for NB_Streamer v0.3.1
 FROM python:3.11-slim AS base
 
 # Set environment variables for build efficiency
@@ -48,15 +48,16 @@ COPY --chown=appuser:users src/ ./src/
 # Switch to non-root user for security
 USER appuser
 
-# Expose application port - standardized to 8080 for multi-tenancy
-EXPOSE 8000
+# Expose application port - using 8080 for multi-tenancy
+EXPOSE 8080
 
-# Enhanced health check with proper timing for production
+# Enhanced health check with proper port
 HEALTHCHECK --interval=10s --timeout=2s --retries=6 --start-period=20s \
-    CMD curl -fsS http://localhost:8000/health || exit 1
+    CMD curl -fsS http://localhost:8080/health || exit 1
 
-# Set working directory environment for the app
-ENV NB_PORT=8000
+# Set environment variables
+ENV NB_PORT=8080 \
+    NB_HOST=0.0.0.0
 
 # Default command
 CMD ["/venv/bin/python", "-m", "src.main"]
