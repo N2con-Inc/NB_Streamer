@@ -1,4 +1,4 @@
-# Multi-stage production container for NB_Streamer v0.3.1
+# Multi-stage production container for NB_Streamer v0.3.2
 FROM python:3.11-slim AS base
 
 # Set environment variables for build efficiency

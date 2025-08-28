@@ -6,11 +6,10 @@ Handles environment variables, validation, and default values.
 import logging
 import os
 from pathlib import Path
-from typing import Optional, Set, Literal
+from typing import Optional, Set, Literal, List
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, field_validator
-from pydantic_settings import SettingsConfigDict
 
 
 logger = logging.getLogger(__name__)
@@ -20,26 +19,27 @@ class Config(BaseSettings):
     """Configuration class with environment variable support and validation."""
     
     # Version and basic settings
-    version: str = "0.3.1"
+    version: str = "0.3.2"
     
     # Server Configuration
     nb_host: str = Field(default="0.0.0.0")
-    nb_port: int = Field(default=8000)  
+    nb_port: int = Field(default=8080)  # Fixed default port
     nb_debug: bool = Field(default=False)
     nb_log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(default="INFO")
 
     # Graylog Configuration
     nb_graylog_host: str = Field(default="localhost")
     nb_graylog_port: int = Field(default=12201)
-    nb_graylog_protocol: Literal["tcp", "udp"] = Field(default="udp")
-    nb_graylog_timeout: int = Field(default=10)
+    nb_graylog_protocol: Literal["udp", "tcp"] = Field(default="udp")
 
-    # Multi-tenancy Configuration
+    # Multi-tenant Configuration
     nb_tenants: str = Field(default="")
-    nb_tenants_file: Optional[str] = Field(default=None)
     nb_require_tenant_path: bool = Field(default=True)
     nb_trust_proxy_headers: bool = Field(default=True)
     nb_expose_tenants: bool = Field(default=False)
+
+    # Legacy Support (disabled by default)
+    nb_allow_legacy_events: bool = Field(default=False)
 
     # Authentication Configuration
     nb_auth_type: Literal["none", "bearer", "basic", "header"] = Field(default="none")
@@ -53,9 +53,14 @@ class Config(BaseSettings):
     nb_compression_enabled: bool = Field(default=True)
     nb_max_message_size: int = Field(default=8192)
 
+    # Pydantic v2 configuration
     model_config = SettingsConfigDict(
-env_file=".env",
-case_sensitive=True)
+        # env_file=".env",  # Handled by Docker Compose
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+        env_prefix=""
+    )
 
     @property
     def host(self) -> str:
@@ -84,10 +89,9 @@ case_sensitive=True)
     @property
     def graylog_protocol(self) -> str:
         return self.nb_graylog_protocol
-
     @property
-    def graylog_timeout(self) -> int:
-        return self.nb_graylog_timeout
+    def tenants(self) -> str:
+        return self.nb_tenants
 
     @property
     def require_tenant_path(self) -> bool:
@@ -100,6 +104,10 @@ case_sensitive=True)
     @property
     def expose_tenants(self) -> bool:
         return self.nb_expose_tenants
+
+    @property
+    def allow_legacy_events(self) -> bool:
+        return self.nb_allow_legacy_events
 
     @property
     def auth_type(self) -> str:
@@ -133,47 +141,33 @@ case_sensitive=True)
     def max_message_size(self) -> int:
         return self.nb_max_message_size
 
-    @property
-    def tenants(self) -> Set[str]:
-        """Get the set of configured tenants."""
-        tenants = set()
-        
-        # Add from environment variable
-        if self.nb_tenants.strip():
-            env_tenants = [t.strip().lower() for t in self.nb_tenants.split(",")]
-            tenants.update(tenant for tenant in env_tenants if tenant)
-        
-        # Add from file if specified
-        if self.nb_tenants_file:
-            try:
-                tenants_file = Path(self.nb_tenants_file)
-                if tenants_file.exists():
-                    content = tenants_file.read_text().strip()
-                    file_tenants = [t.strip().lower() for t in content.split("\n")]
-                    tenants.update(tenant for tenant in file_tenants if tenant and not tenant.startswith("#"))
-                    logger.info(f"Loaded {len(file_tenants)} tenants from {self.nb_tenants_file}")
-                else:
-                    logger.warning(f"Tenants file {self.nb_tenants_file} not found")
-            except Exception as e:
-                logger.error(f"Error reading tenants file {self.nb_tenants_file}: {e}")
-        
-        return tenants
+    def get_tenant_list(self) -> List[str]:
+        """Get list of configured tenants."""
+        if not self.tenants:
+            return []
+        return [tenant.strip() for tenant in self.tenants.split(",") if tenant.strip()]
 
-    def validate_configuration(self):
-        """Validate configuration and log startup information."""
-        tenant_list = list(self.tenants)
+    def validate_startup_configuration(self) -> None:
+        """Validate configuration at startup."""
+        tenant_list = self.get_tenant_list()
         
-        if not tenant_list:
-            logger.error("No tenants configured. Please set NB_TENANTS environment variable.")
-            raise ValueError("At least one tenant must be configured")
+        if self.require_tenant_path and not tenant_list:
+            raise ValueError("NB_TENANTS must be configured when NB_REQUIRE_TENANT_PATH is True")
         
-        # Log configuration summary
-        logger.info("=== NB_Streamer Configuration Summary ===")
-        logger.info(f"Multi-tenancy enabled: True")
-        logger.info(f"Configured tenants: {tenant_list}")
-        
-        if not tenant_list:
+        if tenant_list:
+            logger.info(f"Configured tenants: {tenant_list}")
+        else:
             logger.warning("No tenants configured - check your configuration")
+
+        # Validate authentication configuration
+        if self.auth_type == "bearer" and not self.auth_token:
+            raise ValueError("Bearer token is required when auth_type is bearer")
+        
+        if self.auth_type == "basic" and (not self.auth_username or not self.auth_password):
+            raise ValueError("Username and password are required when auth_type is basic")
+        
+        if self.auth_type == "header" and (not self.auth_header_name or not self.auth_header_value):
+            raise ValueError("Header name and value are required when auth_type is header")
 
     @field_validator("nb_auth_token")
     @classmethod

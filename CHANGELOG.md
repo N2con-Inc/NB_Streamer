@@ -5,6 +5,28 @@ All notable changes to NB_Streamer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2024-08-28
+
+### Fixed
+- **CRITICAL**: Fixed Pydantic configuration not reading environment variables
+- **CRITICAL**: Added missing `validate_startup_configuration()` method
+- Fixed default port from 8000 to 8080 for consistency
+- Improved Pydantic v2 compatibility with proper SettingsConfigDict
+- Fixed Docker container startup issues
+
+### Changed
+- Updated version to 0.3.2 across all files
+- Enhanced configuration validation with proper error messages
+- Improved environment variable handling in containers
+
+### Technical Improvements
+- Proper Pydantic v2 BaseSettings configuration
+- Fixed model_config formatting for environment variable loading
+- Enhanced startup configuration validation
+- Better error handling for missing configuration
+
+---
+
 ## [Planned] - v0.4.0 (Q1 2025)
 
 ### Planned Features
