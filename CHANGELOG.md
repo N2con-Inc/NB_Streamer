@@ -5,28 +5,81 @@ All notable changes to NB_Streamer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.1] - 2025-08-28
+## [Planned] - v0.4.0 (Q1 2025)
+
+### Planned Features
+- **🔐 Per-Tenant Authentication**: Separate authentication mechanisms for each tenant
+  - JSON-based tenant authentication configuration
+  - Support for mixed authentication methods (Bearer, Basic, Header, None)
+  - Backward compatibility with global authentication
+  - Enhanced security through tenant credential isolation
+- **📊 Enhanced Monitoring**: Per-tenant metrics and authentication tracking
+- **🔧 Configuration Management**: Improved configuration validation and templates
+- **🚦 Rate Limiting**: Optional per-tenant rate limiting (if time permits)
+
+### Technical Improvements
+- Performance optimizations for high-tenant-count deployments
+- Enhanced error handling and user feedback
+- Comprehensive test coverage for per-tenant features
+- Security testing and penetration testing
+
+### Documentation Updates
+- Migration guide from v0.3.x to v0.4.0
+- Security best practices guide
+- Troubleshooting and debugging guide
+- Architecture documentation updates
+
+### Breaking Changes
+- **None planned** - v0.4.0 will maintain full backward compatibility
+- New features will be opt-in and additive
+- Existing configurations will continue to work unchanged
+
+---
+
+## [0.3.1] - 2024-08-28
+
+### Added
+- **Container Registry Support**: Automated Docker builds and deployment
+  - GitHub Actions CI/CD pipeline for image builds
+  - Pre-built images on GitHub Container Registry (ghcr.io)
+  - Production deployment scripts (`scripts/deploy.sh`, `scripts/build-and-push.sh`)
+  - Docker Compose configurations for production deployments
+- **Documentation Overhaul**: Comprehensive guides and references
+  - Container registry setup guides
+  - Deployment documentation with multiple scenarios
+  - Configuration reference with all environment variables
+  - External proxy integration guides (Traefik, Nginx)
+- **Build and Deployment Tools**:
+  - Release preparation script (`scripts/prepare-release.sh`)
+  - Automated build and push workflows
+  - Environment variable templates and examples
 
 ### Removed
 - **BREAKING**: Legacy `/events` endpoint has been permanently disabled
 - Removed legacy environment variables and configuration options
 - Cleaned up legacy-related code and comments
+- Moved outdated documentation to `docs/archive/`
 
 ### Changed
 - Simplified codebase by removing backward compatibility layer
-- Updated documentation to reflect multi-tenant only architecture
+- Updated documentation structure with organized guides
 - Legacy `/events` endpoint now returns clear error message directing users to tenant-specific endpoints
+- Updated Docker configurations removing deprecated `version` fields
+- Enhanced `.gitignore` and project file organization
 
 ### Fixed
 - Improved configuration validation and error messages
 - Streamlined multi-tenant configuration handling
+- Fixed Pydantic configuration issues and environment handling
+- Updated requirements.txt with proper dependencies
 
 ### Migration Notes
 - **Required**: All clients must now use tenant-specific endpoints: `POST /{tenant}/events`
 - **Required**: Remove any legacy environment variables from your `.env` file
 - The legacy `/events` endpoint will return HTTP 400 with migration instructions
+- Update deployment workflows to use container registry images
 
-## [0.3.0] - 2025-08-28
+## [0.3.0] - 2024-08-28
 
 ### Added
 - **Multi-tenancy support** with tenant-specific endpoints (`/{tenant}/events`)
@@ -74,3 +127,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Environment-based configuration
 - Health check endpoints
 - Container deployment support
+
+---
+
+## Release Notes
+
+### v0.3.1 Release Notes
+Comprehensive release notes available in [RELEASE_NOTES_v0.3.1.md](RELEASE_NOTES_v0.3.1.md)
+
+### Future Releases
+See [ROADMAP.md](ROADMAP.md) for detailed information about upcoming features and release timeline.
