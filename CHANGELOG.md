@@ -2,60 +2,42 @@
 
 All notable changes to NB_Streamer will be documented in this file.
 
+## [0.5.1] - 2025-08-28
+
+### Fixed
+- **NetBird Webhook Bug Workaround**: Fixed parsing of NetBird webhook payloads when using custom webhook body templates
+  - Added Go map syntax parser for `meta` field that NetBird incorrectly sends as string instead of JSON object
+  - Added HTML entity decoding (`&#43;` → `+`) for timestamps and other fields 
+  - Added Go timestamp to ISO 8601 conversion (`2025-08-28 23:31:16.312662603 +0000 UTC` → `2025-08-28T23:31:16.312Z`)
+  - Fixed OpenSearch/Elasticsearch date parsing errors in Graylog
+  - Fixed JSON parsing exceptions caused by compressed GELF messages by disabling compression
+
+### Added
+- Comprehensive NetBird bug workaround documentation (`NETBIRD_BUG_WORKAROUND.md`)
+- Code comments marking workaround functions for removal when upstream bug is fixed
+
+### Technical Details
+- **Root Cause**: NetBird's `{{.Event.Meta}}` template outputs Go map string instead of JSON object
+- **Trigger**: Occurs when customizing webhook body template (e.g., adding `NB_Tenant` field)
+- **Impact**: Events failed to index in Graylog due to malformed timestamp fields
+- **Solution**: Automatic detection and parsing of Go map syntax with proper field extraction
+
+### Notes
+- This workaround will be **removed** when NetBird fixes the upstream bug
+- Bug report filed with NetBird project
+- All event processing now works correctly with proper field separation and timestamp formatting
+
 ## [0.5.0] - 2025-08-28
 
-### 🎉 Major Simplification Release
+### Changed
+- Simplified architecture from multi-tenant to single-tenant with `NB_Tenant` field-based routing
+- Consolidated authentication to single API key
+- Streamlined configuration and deployment
 
-This version represents a complete architectural simplification, moving from complex multi-tenant URL routing to simple payload-based tenant identification.
+### Fixed
+- Initial timestamp parsing improvements
+- Code cleanup and simplification
 
-### ✨ Added
-- **Single endpoint architecture**: All NetBird instances use `/events`
-- **Payload-based tenant identification**: Uses `NB_Tenant` field in JSON payload
-- **Simplified configuration**: Single authentication token for all tenants
-- **Enhanced error handling**: Clear error messages for missing or invalid tenant fields
-- **Comprehensive documentation**: New NetBird setup guide with webhook body template examples
+## Previous Versions
 
-### 🔄 Changed
-- **BREAKING**: Removed complex multi-tenant URL routing (`/tenant/events`)
-- **BREAKING**: Removed per-tenant authentication tokens
-- **BREAKING**: All NetBird instances must now include `NB_Tenant` field in webhook body template
-- **Improved**: Simplified configuration management
-- **Updated**: All documentation reflects new simplified approach
-
-### ❌ Removed
-- Multi-tenant configuration complexity (`NB_TENANTS`, `NB_REQUIRE_TENANT_PATH`, etc.)
-- Per-tenant token management (`NB_AUTH_TOKEN_tenant`)
-- Legacy endpoint complexity
-- Complex tenant validation and routing logic
-
-### 📚 Documentation
-- Added comprehensive [NetBird Setup Guide](docs/netbird-setup.md)
-- Updated README.md with simplified architecture explanation
-- Updated .env.example with new configuration format
-- Added webhook body template examples for different tenants
-
-### 🔧 Configuration Changes
-Required environment variables are now much simpler:
-```env
-NB_GRAYLOG_HOST=your-graylog-server.com
-NB_AUTH_TYPE=bearer  
-NB_AUTH_TOKEN=your-secure-token
-```
-
-### 🚀 Migration from 0.3.x
-1. Update NetBird webhook body templates to include `NB_Tenant` field
-2. Simplify NB_Streamer configuration (remove multi-tenant specific settings)
-3. Update webhook URLs to use `/events` endpoint for all NetBird instances
-4. Use single authentication token for all tenants
-
-### 🎯 Benefits
-- **Easier management**: One endpoint, one token for all NetBird instances
-- **Simplified scaling**: Add new tenants by just updating webhook body templates
-- **Reduced complexity**: No more complex tenant configuration management
-- **Better maintainability**: Cleaner codebase with less complexity
-
----
-
-## [0.3.x] - Previous Versions
-
-See git history for detailed changelog of multi-tenant architecture versions.
+See git history for earlier version details.

@@ -16,7 +16,7 @@ from .services.graylog import GraylogService as GraylogForwarder
 from .services.transformer import TransformerService as EventTransformer
 
 # Version information
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 # Configure logging
 logging.basicConfig(
@@ -174,6 +174,7 @@ async def process_events(request: Request):
         # Parse request body
         try:
             raw_body = await request.body()
+
             event_data = json.loads(raw_body)
         except json.JSONDecodeError as e:
             raise HTTPException(

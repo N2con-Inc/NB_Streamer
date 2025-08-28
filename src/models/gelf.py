@@ -1,12 +1,77 @@
 """GELF message models for Graylog integration."""
 
 import json
+import logging
 import re
 import time
 from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
 from pydantic import BaseModel, Field, field_validator
+
+def convert_go_timestamp_to_iso(timestamp_str):
+    """
+    Convert Go timestamp format to ISO 8601 format.
+    
+    NETBIRD BUG WORKAROUND: Converts Go timestamps and handles HTML entities
+    (&#43; for +) that appear in NetBird webhook payloads due to upstream bug.
+    
+    This function should be REMOVED when NetBird fixes the upstream bug.
+    See NETBIRD_BUG_WORKAROUND.md for details.
+    
+    Go format: '2025-08-28 23:04:20.987971503 +0000 UTC'
+    ISO format: '2025-08-28T23:04:20.987Z'
+    """
+    import re
+    import html
+    from datetime import datetime
+    
+    if not isinstance(timestamp_str, str):
+        return timestamp_str
+    
+    # Decode HTML entities (e.g., &#43; -> +)
+    timestamp_str = html.unescape(timestamp_str)
+    
+    # Pattern to match Go timestamp: YYYY-MM-DD HH:MM:SS.nnnnnnnnn +0000 UTC
+    go_timestamp_pattern = r'^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\.(\d+)\s+\+0000\s+UTC$'
+    match = re.match(go_timestamp_pattern, timestamp_str.strip())
+    
+    if match:
+        date_part = match.group(1)
+        time_part = match.group(2) 
+        nanosec_part = match.group(3)
+        
+        # Convert nanoseconds to milliseconds (truncate to 3 digits)
+        millisec = nanosec_part[:3].ljust(3, '0')
+        
+        # Format as ISO 8601
+        iso_timestamp = f"{date_part}T{time_part}.{millisec}Z"
+        return iso_timestamp
+    
+    return timestamp_str
+
+
+
+# Set up logger for this module
+logger = logging.getLogger(__name__)
+def debug_event_fields(event_data):
+    """Debug helper to log event structure"""
+    logger.info(f"EVENT DEBUG: Received event with {len(event_data)} fields")
+    logger.info(f"EVENT DEBUG: Field names: {list(event_data.keys())}")
+    
+    # Check for meta-related fields
+    meta_related = {k: v for k, v in event_data.items() if 'meta' in k.lower()}
+    if meta_related:
+        logger.info(f"EVENT DEBUG: Meta-related fields found: {list(meta_related.keys())}")
+        for key, value in meta_related.items():
+            logger.info(f"EVENT DEBUG: {key} = {repr(value)} (type: {type(value).__name__})")
+    else:
+        logger.info("EVENT DEBUG: No meta-related fields found")
+    
+    # Show a sample of all fields for debugging
+    sample_fields = dict(list(event_data.items())[:5])  # First 5 fields
+    logger.info(f"EVENT DEBUG: Sample fields: {sample_fields}")
+
 
 
 def parse_ip_port(addr_string: str) -> Tuple[Optional[str], Optional[str]]:
@@ -102,6 +167,135 @@ def enhance_address_fields(flattened_data: Dict[str, Any]) -> Dict[str, Any]:
     return enhanced_data
 
 
+def parse_json_fields(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Parse JSON strings and Go map strings in specific fields.
+    
+    This function looks for fields like 'meta' that might contain JSON strings
+    or Go map format strings and attempts to parse them into structured data.
+    
+    Args:
+        data: Dictionary that might contain JSON string values or Go map strings
+        
+    Returns:
+        Dictionary with JSON/Go map strings parsed into structured data
+    """
+    parsed_data = data.copy()
+    
+    # Fields that commonly contain structured data
+    structured_field_candidates = ['meta', 'metadata', 'data', 'payload', 'details']
+    
+    for key, value in data.items():
+        if isinstance(value, str) and len(value.strip()) > 0:
+            stripped = value.strip()
+            
+            # NETBIRD BUG WORKAROUND: Check for Go map format (remove when NetBird fixes upstream bug)
+            if stripped.startswith('map[') and stripped.endswith(']'):
+                try:
+                    parsed_go_map = parse_go_map(stripped)
+                    if parsed_go_map:
+                        parsed_data[key] = parsed_go_map
+                        logger.info(f"Successfully parsed Go map format in field '{key}' - found {len(parsed_go_map)} keys")
+                        continue  # Successfully parsed, move to next field
+                except Exception as e:
+                    logger.warning(f"Failed to parse Go map in field '{key}': {e}")
+            
+            # Check for JSON format (standard JSON objects/arrays)
+            elif (stripped.startswith('{') and stripped.endswith('}')) or (stripped.startswith('[') and stripped.endswith(']')):
+                try:
+                    parsed_json = json.loads(stripped)
+                    parsed_data[key] = parsed_json
+                    logger.info(f"Successfully parsed JSON content in field '{key}' (type: {type(parsed_json).__name__})")
+                    continue  # Successfully parsed, move to next field
+                except (json.JSONDecodeError, TypeError):
+                    pass  # Fall through to other checks
+            
+            # Check if this field is a known candidate for structured data and try JSON parsing
+            elif key.lower() in [f.lower() for f in structured_field_candidates]:
+                try:
+                    # Try to parse as JSON
+                    parsed_json = json.loads(stripped)
+                    parsed_data[key] = parsed_json
+                    logger.info(f"Successfully parsed JSON in field '{key}' (type: {type(parsed_json).__name__})")
+                    continue  # Successfully parsed, move to next field
+                except (json.JSONDecodeError, TypeError):
+                    pass  # Keep original value
+    
+    return parsed_data
+def parse_go_map(go_map_string):
+    """
+    Parse Go map string format like: map[key1:value1 key2:value2 ...]
+    Returns a dictionary.
+    
+    NETBIRD BUG WORKAROUND: This function exists to handle a NetBird bug where
+    the 'meta' field in webhook payloads contains Go map syntax instead of 
+    proper JSON when using custom webhook body templates.
+    
+    This workaround should be REMOVED when NetBird fixes the upstream bug.
+    See NETBIRD_BUG_WORKAROUND.md for details.
+    
+    Handles empty values, complex timestamps, and special characters correctly.
+    """
+    if not go_map_string.startswith('map[') or not go_map_string.endswith(']'):
+        return None
+    
+    # Extract the content between map[ and ]
+    content = go_map_string[4:-1]  # Remove 'map[' and ']'
+    
+    result = {}
+    
+    # More robust parsing using regex to find all key:value patterns
+    import re
+    
+    # First, let's find all potential keys by looking for the pattern "word:"
+    # This helps us identify where keys start, even with empty values
+    key_positions = []
+    
+    # Find all positions where we have "word:" pattern
+    for match in re.finditer(r'\b([a-zA-Z_][a-zA-Z0-9_]*):', content):
+        key_positions.append({
+            'start': match.start(),
+            'end': match.end(),
+            'key': match.group(1),
+            'key_end': match.end()
+        })
+    
+    if not key_positions:
+        return {}
+    
+    # Now process each key-value pair
+    for i, key_info in enumerate(key_positions):
+        key = key_info['key']
+        value_start = key_info['key_end']  # Start after the colon
+        
+        # Determine where the value ends
+        if i + 1 < len(key_positions):
+            # Value ends where the next key starts
+            value_end = key_positions[i + 1]['start']
+        else:
+            # Last key-value pair, value goes to the end
+            value_end = len(content)
+        
+        # Extract the value
+        value = content[value_start:value_end].strip()
+        
+        # Clean up the value
+        # Remove quotes if present
+        if len(value) >= 2:
+            if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+                value = value[1:-1]
+        
+        # Handle empty values
+        if not value:
+            value = ""
+        
+        # Convert Go timestamp format to ISO 8601 for timestamp fields
+        if key.endswith('timestamp') and isinstance(value, str):
+            value = convert_go_timestamp_to_iso(value)
+        
+        result[key] = value
+    
+    return result
 def flatten_dict(
     data: Dict[str, Any], parent_key: str = "", separator: str = "_"
 ) -> Dict[str, Any]:
@@ -231,16 +425,22 @@ class GELFMessage(BaseModel):
             tenant_id: Tenant/client identifier
             short_message: Override for short message
         """
+        # DEBUG: Log the incoming event structure
+        debug_event_fields(event_data)
+        
+        # First, parse any JSON strings in the event data (like meta field)
+        parsed_event_data = parse_json_fields(event_data)
+        
         # Generate short message if not provided
         if not short_message:
             # Try to use the actual Message field from Netbird events
-            if "Message" in event_data and event_data["Message"]:
-                short_message = str(event_data["Message"]).strip()
+            if "Message" in parsed_event_data and parsed_event_data["Message"]:
+                short_message = str(parsed_event_data["Message"]).strip()
             else:
                 # Fallback to constructing from available fields
-                event_type = event_data.get("type", event_data.get("event_type", ""))
-                action = event_data.get("action", "")
-                user = event_data.get("user", event_data.get("InitiatorID", ""))
+                event_type = parsed_event_data.get("type", parsed_event_data.get("event_type", ""))
+                action = parsed_event_data.get("action", "")
+                user = parsed_event_data.get("user", parsed_event_data.get("InitiatorID", ""))
 
                 if action and user:
                     short_message = f"Netbird {event_type}: {action} by {user}"
@@ -255,8 +455,8 @@ class GELFMessage(BaseModel):
         timestamp = None
 
         # Try Timestamp field first (capitalized) as it contains timestamp
-        timestamp_field = event_data.get("Timestamp")
-        lowercase_timestamp_field = event_data.get("timestamp")
+        timestamp_field = parsed_event_data.get("Timestamp")
+        lowercase_timestamp_field = parsed_event_data.get("timestamp")
 
         # Function to validate if a value looks like a timestamp
         def is_valid_timestamp_value(value):
@@ -301,8 +501,8 @@ class GELFMessage(BaseModel):
 
         # Convert level to syslog level if it's a string
         level = 6  # Default INFO
-        if "level" in event_data:
-            level_str = str(event_data["level"]).upper()
+        if "level" in parsed_event_data:
+            level_str = str(parsed_event_data["level"]).upper()
             level_mapping = {
                 "EMERGENCY": 0,
                 "EMERG": 0,
@@ -326,8 +526,8 @@ class GELFMessage(BaseModel):
         # Add tenant field
         custom_fields["_NB_tenant"] = tenant_id
 
-        # Flatten the entire event data structure
-        flattened_data = flatten_dict(event_data)
+        # Flatten the entire event data structure (now with parsed JSON fields)
+        flattened_data = flatten_dict(parsed_event_data)
 
         # Enhance flattened data by parsing IP:port combinations
         enhanced_data = enhance_address_fields(flattened_data)
@@ -355,7 +555,7 @@ class GELFMessage(BaseModel):
 
         # Keep original event data for full_message (for debugging/reference)
         serializable_event_data = {}
-        for key, value in event_data.items():
+        for key, value in parsed_event_data.items():
             if isinstance(value, datetime):
                 serializable_event_data[key] = value.isoformat()
             elif isinstance(value, (dict, list)):

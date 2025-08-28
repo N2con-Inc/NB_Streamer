@@ -137,3 +137,16 @@ For multiple NetBird instances, simply customize the webhook body template inste
 ## License
 
 MIT License - see LICENSE file for details.
+
+## Known Issues & Workarounds
+
+### NetBird Webhook Bug (v0.5.1)
+
+**Issue**: NetBird sends the `meta` field as Go map syntax string instead of JSON object when using custom webhook templates.
+
+**Workaround**: Version 0.5.1 includes automatic parsing of Go map format with HTML entity decoding and timestamp conversion.
+
+**Documentation**: See [NETBIRD_BUG_WORKAROUND.md](./NETBIRD_BUG_WORKAROUND.md) for full details.
+
+**Status**: This workaround will be removed when NetBird fixes the upstream bug.
+
