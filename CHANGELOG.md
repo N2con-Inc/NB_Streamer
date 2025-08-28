@@ -5,6 +5,28 @@ All notable changes to NB_Streamer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2024-08-28
+
+### Critical Bugfix
+- **CRITICAL**: Fixed Graylog host configuration from localhost to 10.0.1.244
+- **CRITICAL**: Updated all default configurations to use correct production Graylog server
+- Fixed version number display in health endpoint (now shows 0.3.2 correctly)
+
+### Documentation Updates
+- Updated all documentation to reference correct Graylog host (10.0.1.244:12201)
+- Fixed production deployment examples with correct server configuration
+- Updated .env examples and configuration templates
+- Corrected configuration documentation defaults
+
+### Configuration Changes
+- Default graylog_host changed from "localhost" to "10.0.1.244"
+- Production environment files updated with correct host
+- All example configurations now use production values
+
+**Migration**: If upgrading from 0.3.2, update NB_GRAYLOG_HOST=10.0.1.244 in your .env file
+
+---
+
 ## [0.3.2] - 2024-08-28
 
 ### Fixed

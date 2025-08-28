@@ -58,7 +58,7 @@ NB_EXPOSE_TENANTS=false
 ### Configuration Analysis
 - **Tenant:** n2con (single tenant setup)
 - **Authentication:** Bearer token authentication enabled
-- **Graylog Integration:** Configured for localhost:12201
+- **Graylog Integration:** Configured for 10.0.1.244:12201
 - **Port Configuration:** 8001 (external) -> 8080 (internal)
 
 ### Historical Environment Files

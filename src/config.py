@@ -19,7 +19,7 @@ class Config(BaseSettings):
     """Configuration class with environment variable support and validation."""
     
     # Version and basic settings
-    version: str = "0.3.2"
+    version: str = "0.3.3"
     
     # Server Configuration
     nb_host: str = Field(default="0.0.0.0")
@@ -28,7 +28,7 @@ class Config(BaseSettings):
     nb_log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(default="INFO")
 
     # Graylog Configuration
-    nb_graylog_host: str = Field(default="localhost")
+    nb_graylog_host: str = Field(default="10.0.1.244")
     nb_graylog_port: int = Field(default=12201)
     nb_graylog_protocol: Literal["udp", "tcp"] = Field(default="udp")
 
@@ -146,6 +146,28 @@ class Config(BaseSettings):
         if not self.tenants:
             return []
         return [tenant.strip() for tenant in self.tenants.split(",") if tenant.strip()]
+
+    def validate_tenant_format(self, tenant: str) -> bool:
+        """Validate tenant name format (alphanumeric, hyphens, underscores only)."""
+        if not tenant:
+            return False
+        import re
+        # Allow alphanumeric characters, hyphens, and underscores
+        return re.match(r"^[a-zA-Z0-9_-]+$", tenant) is not None
+
+    def is_tenant_allowed(self, tenant: str) -> bool:
+        """Check if tenant is in the allowed tenants list."""
+        tenant_list = self.get_tenant_list()
+        if not tenant_list:
+            # If no tenants configured, allow any tenant
+            return True
+        return tenant.lower() in [t.lower() for t in tenant_list]
+
+
+
+        import re
+        # Allow alphanumeric characters, hyphens, and underscores
+        return re.match(r"^[a-zA-Z0-9_-]+$", tenant) is not None
 
     def validate_startup_configuration(self) -> None:
         """Validate configuration at startup."""

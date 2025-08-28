@@ -32,7 +32,7 @@ graylog_service = GraylogService()
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
-    logger.info("Starting NB_Streamer v0.3.0")
+    logger.info("Starting NB_Streamer v0.3.3")
     
     # Validate configuration at startup
     config.validate_startup_configuration()
@@ -61,7 +61,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="NB_Streamer",
     description="Multi-tenant Netbird Event Streaming Service to Graylog",
-    version="0.3.0",
+    version="0.3.3",
     lifespan=lifespan,
 )
 
@@ -138,7 +138,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "nb_streamer",
-        "version": "0.3.0",
+        "version": "0.3.3",
         "multi_tenancy": config.require_tenant_path,
         "tenants_count": len(tenant_list),
         

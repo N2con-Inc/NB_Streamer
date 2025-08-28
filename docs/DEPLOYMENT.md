@@ -123,7 +123,7 @@ NB_TENANTS=tenant1,tenant2
 NB_AUTH_TOKEN=your-secure-token
 
 # Graylog
-NB_GRAYLOG_HOST=your-graylog-host
+NB_GRAYLOG_HOST=10.0.1.244
 NB_GRAYLOG_PORT=12201
 
 # Optional
