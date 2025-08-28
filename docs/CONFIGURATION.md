@@ -23,7 +23,7 @@ NB_TENANTS=tenant1,tenant2,tenant3
 ### Graylog Connection
 ```bash
 # Graylog server details
-NB_GRAYLOG_HOST=10.0.1.244
+NB_GRAYLOG_HOST=your-graylog-server.com
 NB_GRAYLOG_PORT=12201
 NB_GRAYLOG_PROTOCOL=udp
 ```
@@ -55,7 +55,7 @@ NB_AUTH_TOKEN=your-secure-token-here
 ### Graylog Configuration
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NB_GRAYLOG_HOST` | `10.0.1.244` | **Required** - Graylog server hostname |
+| `NB_GRAYLOG_HOST` | `your-graylog-server` | **Required** - Graylog server hostname |
 | `NB_GRAYLOG_PORT` | `12201` | Graylog GELF input port |
 | `NB_GRAYLOG_PROTOCOL` | `udp` | Protocol (tcp, udp) |
 | `NB_GRAYLOG_TIMEOUT` | `10` | Connection timeout in seconds |

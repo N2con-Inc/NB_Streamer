@@ -28,7 +28,7 @@ class Config(BaseSettings):
     nb_log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(default="INFO")
 
     # Graylog Configuration
-    nb_graylog_host: str = Field(default="10.0.1.244")
+    nb_graylog_host: str = Field(default="localhost")
     nb_graylog_port: int = Field(default=12201)
     nb_graylog_protocol: Literal["udp", "tcp"] = Field(default="udp")
 
