@@ -1,322 +1,270 @@
-# NB_Streamer Deployment Guide
+# NB_Streamer Production Deployment Guide
 
-**For testing on another host with real Netbird and Graylog integration**
+This guide covers deploying NB_Streamer using pre-built Docker images from a container registry.
 
-## 🎯 Quick Deployment Steps
+## Overview
 
-### 1. Clone and Setup
+Instead of building Docker images locally each time, we now:
+1. Build images once and push to a container registry
+2. Pull pre-built images for deployment
+3. Use automated CI/CD for continuous deployment
+
+## Quick Start
+
+### 1. Set Up Container Registry Access
+
+Choose your registry and set up authentication:
+
+#### GitHub Container Registry (Recommended)
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/NB_Streamer.git
-cd NB_Streamer
+# Set environment variables
+export IMAGE_REGISTRY="ghcr.io"
+export IMAGE_NAMESPACE="your-github-username"
+export GITHUB_TOKEN="your-personal-access-token"
 
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # Linux/Mac
-# Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
+# Login to registry
+echo $GITHUB_TOKEN | docker login ghcr.io -u $IMAGE_NAMESPACE --password-stdin
 ```
 
-### 2. Configure Environment
+#### Docker Hub
 ```bash
-# Copy and edit configuration
-cp .env.sample .env
-nano .env  # or your preferred editor
+# Set environment variables
+export IMAGE_REGISTRY="docker.io"
+export IMAGE_NAMESPACE="your-dockerhub-username"
+
+# Login to registry
+docker login
 ```
 
-**Required configuration for testing:**
-```bash
-# Graylog Configuration - CHANGE THESE
-NB_GRAYLOG_HOST=your-graylog-server.com    # Your actual Graylog server
-NB_TENANT_ID=test_environment_tenant       # Unique identifier for this test
-
-# Optional - enable authentication if needed
-# NB_AUTH_TYPE=bearer
-# NB_AUTH_TOKEN=your-secure-test-token
-
-# Logging for development
-NB_LOG_LEVEL=DEBUG    # Shows field discovery information
-```
-
-### 3. Test the Service
-```bash
-# Start the service
-python -m src.main
-
-# In another terminal, run tests
-python test_nb_streamer.py
-
-# Manual test
-curl http://localhost:8001/health
-```
-
-### 4. Configure Netbird Integration
-Point your Netbird instance to send events to:
-```
-POST http://your-host:8000/events
-Content-Type: application/json
-```
-
-If authentication is enabled:
-```bash
-# Bearer token
-Authorization: Bearer your-secure-test-token
-
-# Or basic auth
-Authorization: Basic base64(username:password)
-
-# Or custom header
-X-Custom-Auth: your-custom-value
-```
-
-## 🔧 Production-Like Setup
-
-### Docker Deployment (Recommended)
-```bash
-# Build Docker image
-docker build -t nb_streamer:latest .
-
-# Run with environment file
-docker run -d \
-  --name nb_streamer \
-  --env-file .env \
-  -p 8000:8000 \
-  nb_streamer:latest
-```
-
-### Systemd Service (Linux)
-```bash
-# Create service file
-sudo nano /etc/systemd/system/nb_streamer.service
-```
-
-```ini
-[Unit]
-Description=NB_Streamer Netbird Event Service
-After=network.target
-
-[Service]
-Type=simple
-User=nb_streamer
-WorkingDirectory=/opt/nb_streamer
-Environment=PATH=/opt/nb_streamer/venv/bin
-ExecStart=/opt/nb_streamer/venv/bin/python -m src.main
-EnvironmentFile=/opt/nb_streamer/.env
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
+### 2. Deploy Using Pre-built Images
 
 ```bash
-# Enable and start service
-sudo systemctl enable nb_streamer
-sudo systemctl start nb_streamer
-sudo systemctl status nb_streamer
+# Deploy latest version
+./scripts/deploy.sh
+
+# Deploy specific version
+IMAGE_TAG=0.3.1 ./scripts/deploy.sh
 ```
 
-### Nginx Reverse Proxy (Optional)
-```nginx
-server {
-    listen 80;
-    server_name nb-streamer.yourdomain.com;
-    
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
+That's it! The service will be available at http://localhost:8080
 
-## 📊 Monitoring and Debugging
+## Manual Deployment Steps
 
-### Real-time Logs
+### 1. Configuration
+
+Create or update your `.env` file:
 ```bash
-# View service logs
-tail -f /var/log/nb_streamer.log
-
-# Or with systemd
-journalctl -f -u nb_streamer
-
-# Or with Docker
-docker logs -f nb_streamer
+cp .env.example .env
+# Edit .env with your settings
 ```
 
-### Field Discovery
-With `NB_LOG_LEVEL=DEBUG`, you'll see field discovery information:
-```
-INFO - Event contains known fields: ['type', 'timestamp', 'user', 'peer']
-DEBUG - All event fields: ['type', 'timestamp', 'user', 'peer', 'ip_address', 'location']
-```
+### 2. Pull and Start
 
-This helps you understand what Netbird is actually sending.
-
-### Health Monitoring
 ```bash
-# Check service health
-curl http://your-host:8000/health
+# Pull latest images
+docker compose -f docker-compose.production.yml pull
 
-# Expected response:
-{
-  "status": "healthy",
-  "service": "nb_streamer",
-  "version": "0.1.1", 
-  "tenant_id": "your-tenant-id"
-}
+# Start services
+docker compose -f docker-compose.production.yml up -d
 ```
 
-### Test Event Injection
+### 3. Verify Deployment
+
 ```bash
-# Send a test event to verify the pipeline
-curl -X POST http://your-host:8000/events \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "test_event",
-    "timestamp": "2024-01-31T14:30:00Z",
-    "user": "test@example.com",
-    "message": "Test event from deployment",
-    "test_deployment": true
-  }'
+# Check service status
+docker compose -f docker-compose.production.yml ps
+
+# View logs
+docker compose -f docker-compose.production.yml logs
+
+# Test health endpoint
+curl http://localhost:8080/health
 ```
 
-Then check Graylog for a message with:
-- `_NB_tenant`: your configured tenant ID
-- `_NB_type`: "test_event"
-- `_NB_test_deployment`: true
+## Building and Pushing Images
 
-## 🐛 Troubleshooting
+### Manual Build and Push
 
-### Common Issues
-
-**Service won't start:**
 ```bash
-# Check configuration
-python -c "from src.config import config; print('Config loaded successfully')"
+# Set your registry details
+export IMAGE_REGISTRY="ghcr.io"
+export IMAGE_NAMESPACE="your-username"
+export VERSION="0.3.1"
 
-# Check required environment variables
-echo $NB_GRAYLOG_HOST
-echo $NB_TENANT_ID
+# Build and push
+./scripts/build-and-push.sh
 ```
 
-**Events not reaching Graylog:**
+### Automated with GitHub Actions
+
+1. Push code to GitHub repository
+2. GitHub Actions will automatically:
+   - Build Docker image
+   - Push to GitHub Container Registry
+   - Create tags for branches and releases
+
+## Environment Variables
+
+### Registry Configuration
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `IMAGE_REGISTRY` | Container registry URL | `ghcr.io` |
+| `IMAGE_NAMESPACE` | Registry namespace/username | `myusername` |
+| `IMAGE_TAG` | Image tag to deploy | `latest` or `0.3.1` |
+
+### Application Configuration
+
+Use the same `.env` file as before. Key variables:
+
 ```bash
-# Test Graylog connectivity
-nc -u your-graylog-host 12201
-# Type a test message and press Enter
+# Required
+NB_TENANTS=tenant1,tenant2
+NB_AUTH_TOKEN=your-secure-token
 
-# Check Graylog inputs
-# Verify GELF UDP input is active on port 12201
+# Graylog
+NB_GRAYLOG_HOST=your-graylog-host
+NB_GRAYLOG_PORT=12201
+
+# Optional
+NB_LOG_LEVEL=INFO
+NB_EXPOSE_TENANTS=false
 ```
 
-**Authentication issues:**
+## Deployment Strategies
+
+### Production Deployment
+
 ```bash
-# Test with curl including auth
-curl -X POST http://your-host:8000/events \
-  -H "Authorization: Bearer your-token" \
-  -H "Content-Type: application/json" \
-  -d '{"test": "auth"}'
+# Use specific version for stability
+IMAGE_TAG=0.3.1 ./scripts/deploy.sh
 ```
 
-**Field discovery not working:**
+### Staging/Testing
+
 ```bash
-# Ensure debug logging is enabled
-export NB_LOG_LEVEL=DEBUG
-python -m src.main
+# Use latest for testing new features
+IMAGE_TAG=latest ./scripts/deploy.sh
 ```
 
-### Log Analysis
-Key log patterns to watch for:
+### Rollback
+
 ```bash
-# Successful event processing
-grep "Successfully forwarded event to Graylog" /var/log/nb_streamer.log
-
-# Field discovery
-grep "Event contains known fields" /var/log/nb_streamer.log
-
-# Authentication issues  
-grep "Authentication" /var/log/nb_streamer.log
-
-# Transformation errors
-grep "Error transforming event" /var/log/nb_streamer.log
+# Rollback to previous version
+IMAGE_TAG=0.3.0 ./scripts/deploy.sh
 ```
 
-## 🔐 Security Considerations
+## Monitoring and Maintenance
 
-### Production Security
-1. **Enable authentication:**
-   ```bash
-   NB_AUTH_TYPE=bearer
-   NB_AUTH_TOKEN=generate-strong-random-token
-   ```
+### Health Checks
 
-2. **Use HTTPS proxy:**
-   - Deploy behind nginx/traefik with TLS termination
-   - Never expose service directly to internet
-
-3. **Network security:**
-   - Firewall rules to restrict access
-   - VPN or private network access only
-
-4. **Logging security:**
-   - Avoid logging sensitive data
-   - Rotate logs regularly
-   - Monitor for suspicious activity
-
-### Netbird Configuration
-Configure Netbird to send events securely:
-```json
-{
-  "webhook_url": "https://nb-streamer.yourdomain.com/events",
-  "auth_type": "bearer",
-  "auth_token": "your-secure-token",
-  "retry_attempts": 3,
-  "timeout_seconds": 30
-}
-```
-
-## 📈 Performance Tuning
-
-### High Volume Deployments
+The container includes built-in health checks:
 ```bash
-# Increase worker processes
-export NB_WORKERS=4
-uvicorn src.main:app --host 0.0.0.0 --port 8000 --workers 4
+# Check container health
+docker compose -f docker-compose.production.yml ps
 
-# Tune message buffer size
-export NB_MAX_MESSAGE_SIZE=16384
-
-# Use TCP for reliable delivery
-export NB_GRAYLOG_PROTOCOL=tcp
+# Manual health check
+curl http://localhost:8080/health
 ```
 
-### Monitoring Metrics
-Key metrics to monitor:
-- Request rate to `/events` endpoint
-- Response time for event processing
-- Error rate in logs
-- Graylog message ingestion rate
-- Memory and CPU usage
+### Logs
 
-## 🎉 Success Indicators
+```bash
+# View recent logs
+docker compose -f docker-compose.production.yml logs --tail=100
 
-You'll know the integration is working when:
+# Follow logs in real-time
+docker compose -f docker-compose.production.yml logs -f
+```
 
-1. **Service health check passes**
-2. **Netbird events appear in NB_Streamer logs** with field discovery info
-3. **GELF messages arrive in Graylog** with `_NB_tenant` field
-4. **All Netbird fields are prefixed** with `_NB_` in Graylog
-5. **Unknown fields are discovered** and logged for future processing
+### Updates
 
----
+```bash
+# Update to latest image
+docker compose -f docker-compose.production.yml pull
+docker compose -f docker-compose.production.yml up -d
+```
 
-**Next Steps After Successful Deployment:**
-1. Monitor field discovery logs to understand Netbird's event schema
-2. Create Graylog dashboards filtering by `_NB_tenant`  
-3. Set up alerting based on specific event types
-4. Fine-tune field mappings based on discovered structures
+## Troubleshooting
+
+### Registry Authentication Issues
+
+```bash
+# Re-authenticate
+docker login ghcr.io
+
+# Verify authentication
+docker info | grep Registry
+```
+
+### Image Pull Issues
+
+```bash
+# Check if image exists
+docker pull ghcr.io/username/nb-streamer:latest
+
+# Use specific tag
+IMAGE_TAG=0.3.1 docker compose -f docker-compose.production.yml pull
+```
+
+### Container Startup Issues
+
+```bash
+# Check container logs
+docker compose -f docker-compose.production.yml logs nb-streamer
+
+# Check environment variables
+docker compose -f docker-compose.production.yml exec nb-streamer env
+```
+
+## Security Considerations
+
+1. **Private Registries**: Use private registries for sensitive applications
+2. **Access Tokens**: Securely manage registry access tokens
+3. **Image Scanning**: Regularly scan images for vulnerabilities
+4. **Network Security**: Configure proper firewall rules
+5. **Environment Variables**: Secure sensitive configuration data
+
+## CI/CD Integration
+
+The included GitHub Actions workflow automatically:
+- Builds images on code changes
+- Pushes to GitHub Container Registry
+- Tags images appropriately
+- Provides security attestations
+
+### Triggering Deployments
+
+1. **Push to main**: Creates `latest` tag
+2. **Create release tag**: Creates version-specific tags
+3. **Pull requests**: Creates PR-specific tags for testing
+
+## Performance and Scaling
+
+### Resource Limits
+
+The production compose file includes resource limits:
+```yaml
+deploy:
+  resources:
+    limits:
+      memory: 512M
+      cpus: '0.5'
+```
+
+Adjust based on your needs.
+
+### Scaling
+
+For high-traffic deployments, consider:
+- Load balancer in front of multiple instances
+- Container orchestration (Kubernetes, Docker Swarm)
+- Database clustering for Graylog
+- Monitoring and alerting
+
+## Support
+
+- Check logs first: `docker compose -f docker-compose.production.yml logs`
+- Verify configuration: Review `.env` file
+- Test connectivity: `curl http://localhost:8080/health`
+- Check GitHub Issues for known problems

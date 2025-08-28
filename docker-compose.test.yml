@@ -1,0 +1,38 @@
+version: '3.9'
+
+# NB_Streamer v0.3.0 Multi-Tenancy Test Configuration
+# This is for testing the migration before deploying to production
+
+services:
+  nb-streamer-test:
+    image: nb-streamer:0.3.0-test
+    container_name: nb-streamer-test
+    
+    ports:
+      # Test port - different from production to avoid conflicts
+      - "8083:8080"
+    
+    env_file:
+      - .env
+    
+    # Override port for testing
+    environment:
+      - NB_PORT=8080
+    
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 2s
+      retries: 6
+      start_period: 20s
+    
+    restart: unless-stopped
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Security - run as non-root user
+    user: "1000:100"

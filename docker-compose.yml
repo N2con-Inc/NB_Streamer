@@ -1,16 +1,16 @@
-version: '3.8'
 
 # Simple deployment for NB_Streamer
 # Connects to your existing Graylog infrastructure
 
 services:
   nb-streamer:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: nb-streamer:0.3.0-production
+    # build:
+      # context: .
+      # dockerfile: Dockerfile
     container_name: nb-streamer
     ports:
-      - "${NB_PORT:-8000}:8000"
+      - "${NB_EXTERNAL_PORT:-8001}:8000"
     env_file:
       - .env
     restart: unless-stopped

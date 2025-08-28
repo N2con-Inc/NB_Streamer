@@ -1,0 +1,111 @@
+
+# NB_Streamer v0.3.0 - External Reverse Proxy Configuration
+# 
+# This compose file is designed to run behind an external reverse proxy
+# (nginx, Traefik, Cloudflare, AWS ALB, etc.) that:
+# - Terminates TLS/SSL
+# - Forwards requests to this service on port 8080
+# - Handles the /{tenant}/events routing pattern
+#
+# Usage:
+#   docker compose -f docker-compose.external-proxy.yml --env-file .env up -d
+
+services:
+  nb-streamer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nb-streamer:0.3.0
+    container_name: nb-streamer-mt
+    
+    ports:
+      # Bind to host interface - typically only accessible via reverse proxy
+      - "${NB_BIND_HOST:-127.0.0.1}:${NB_BIND_PORT:-8080}:8080"
+    
+    environment:
+      # Graylog Configuration (required)
+      - NB_GRAYLOG_HOST=${NB_GRAYLOG_HOST}
+      - NB_GRAYLOG_PORT=${NB_GRAYLOG_PORT:-12201}
+      - NB_GRAYLOG_PROTOCOL=${NB_GRAYLOG_PROTOCOL:-udp}
+      
+      # Multi-tenancy Configuration
+      - NB_TENANTS=${NB_TENANTS:-n2con}
+      - NB_REQUIRE_TENANT_PATH=${NB_REQUIRE_TENANT_PATH:-true}
+      - NB_ALLOW_LEGACY_EVENTS=${NB_ALLOW_LEGACY_EVENTS:-true}
+      - NB_LEGACY_ENFORCE_MATCH=${NB_LEGACY_ENFORCE_MATCH:-true}
+      - NB_TRUST_PROXY_HEADERS=${NB_TRUST_PROXY_HEADERS:-true}
+      - NB_EXPOSE_TENANTS=${NB_EXPOSE_TENANTS:-false}
+      
+      # Authentication (configure as needed)
+      - NB_AUTH_TYPE=${NB_AUTH_TYPE:-bearer}
+      - NB_AUTH_TOKEN=${NB_AUTH_TOKEN}
+      - NB_AUTH_USERNAME=${NB_AUTH_USERNAME}
+      - NB_AUTH_PASSWORD=${NB_AUTH_PASSWORD}
+      - NB_AUTH_HEADER_NAME=${NB_AUTH_HEADER_NAME}
+      - NB_AUTH_HEADER_VALUE=${NB_AUTH_HEADER_VALUE}
+      
+      # Service Configuration  
+      - NB_HOST=0.0.0.0
+      - NB_PORT=8080
+      - NB_LOG_LEVEL=${NB_LOG_LEVEL:-info}
+      - NB_DEBUG=${NB_DEBUG:-false}
+      
+      # Message Configuration
+      - NB_COMPRESSION_ENABLED=${NB_COMPRESSION_ENABLED:-true}
+      - NB_MAX_MESSAGE_SIZE=${NB_MAX_MESSAGE_SIZE:-8192}
+      
+      # Legacy backward compatibility (from existing .env)
+      - NB_TENANT_ID=${NB_TENANT_ID:-}
+    
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 2s
+      retries: 6
+      start_period: 20s
+    
+    restart: unless-stopped
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Security - run as non-root user (configured in Dockerfile)
+    user: "1000:100"
+
+# External reverse proxy expectations:
+#
+# 1. TLS Termination:
+#    - Handle HTTPS on port 443
+#    - Forward HTTP to this service on configured port (default 8080)
+#
+# 2. Headers to preserve/add:
+#    - Host: original-hostname.com
+#    - X-Forwarded-For: client-ip-address  
+#    - X-Forwarded-Proto: https
+#    - X-Request-ID: unique-request-id (optional)
+#
+# 3. Routing pattern:
+#    - https://your-domain.com/{tenant}/events → http://127.0.0.1:8080/{tenant}/events
+#    - https://your-domain.com/health → http://127.0.0.1:8080/health
+#    - https://your-domain.com/stats → http://127.0.0.1:8080/stats
+#
+# 4. Health check:
+#    - GET /health should return 200 OK for load balancer health checks
+#
+# Example nginx configuration:
+#
+# server {
+#     listen 443 ssl;
+#     server_name your-domain.com;
+#     
+#     location / {
+#         proxy_pass http://127.0.0.1:8080;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#         proxy_set_header X-Request-ID $request_id;
+#     }
+# }

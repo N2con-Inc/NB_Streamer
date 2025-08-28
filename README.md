@@ -1,305 +1,248 @@
 # NB_Streamer
 
-**🚀 Lightweight Netbird-to-Graylog Event Streaming Service**
+**Multi-tenant Event Streaming Service** - A lightweight FastAPI service for securely forwarding events to Graylog with tenant isolation.
 
-Stream Netbird VPN events directly to your existing Graylog infrastructure with multi-tenant support, flexible authentication, and automatic GELF transformation.
+[![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/users/USERNAME/packages/container/nb-streamer)
+[![Python](https://img.shields.io/badge/python-3.11+-blue.svg?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
 
-[![Production Ready](https://img.shields.io/badge/status-production%20ready-green)](docs/PHASE1_COMPLETE.md)
-[![Docker](https://img.shields.io/badge/docker-supported-blue)](Dockerfile)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](requirements.txt)
+## 🚀 Quick Start
 
-## ⚡ Quick Start
+### Using Pre-built Images (Recommended)
 
-### 1️⃣ Clone and Configure
 ```bash
-git clone https://github.com/yourusername/NB_Streamer.git
-cd NB_Streamer
-
-# Copy configuration template
+# Set up environment
 cp .env.example .env
+# Edit .env with your configuration
 
-# Edit configuration (set your Graylog host and tenant ID)
-nano .env
+# Deploy with registry images
+./scripts/deploy.sh
 ```
 
-### 2️⃣ Deploy with Docker
+Your service will be available at `http://localhost:8080`
+
+### Manual Docker Build
+
 ```bash
-# Simple deployment (connects to your existing Graylog)
-docker-compose up -d
+# Build and run locally
+docker compose up -d --build
 ```
 
-### 3️⃣ Test Your Deployment
-```bash
-# Health check
-curl http://localhost:8001/health
+## 📋 Features
 
-# Send test event
-cd examples/
-./curl-test.sh
-```
-
-### 4️⃣ Configure Netbird
-Point Netbird webhook to: `http://your-server:8001/events`
-
-**That's it!** Your Netbird events are now flowing to Graylog with multi-tenant support. 🎉
-
----
-
-## 📋 What It Does
-
-- **Receives**: Netbird activity events via HTTP POST
-- **Transforms**: JSON events → GELF format with `_NB_` prefixes  
-- **Forwards**: Events to your existing Graylog infrastructure via UDP/TCP
-- **Supports**: Multi-tenancy, multiple auth methods, field discovery
-
-**Prerequisites**: Requires an existing Graylog server with GELF input configured (typically UDP port 12201)
+- **🏢 Multi-tenant Architecture** - Isolated endpoints per tenant
+- **🔐 Multiple Authentication Methods** - Bearer, Basic, Header, or None
+- **⚡ High Performance** - FastAPI-based async processing
+- **🐳 Container Ready** - Optimized Docker images with health checks
+- **📊 Observability** - Structured logging with tenant context
+- **🔄 CI/CD Integration** - Automated builds and deployments
+- **🛡️ Security Focused** - Tenant validation and request sanitization
 
 ## 🏗️ Architecture
 
 ```
-Netbird → NB_Streamer → Graylog
-   │           │           │
-   │           ├─ Authentication
-   │           ├─ GELF Transformation
-   │           ├─ Multi-tenant Support
-   │           └─ Field Discovery
-   │
-   └── HTTP POST /events
+Client Apps → [Reverse Proxy] → NB_Streamer → Graylog
+    ↓              ↓                ↓           ↓
+Per-tenant     Load balance    Multi-tenant   Centralized
+endpoints      & SSL           validation     logging
 ```
 
-### Event Transformation Example
+### Multi-tenant Endpoints
 
-**Input (Netbird):**
-```json
-{
-  "type": "peer_login",
-  "user": "john@example.com",
-  "timestamp": "2025-01-30T12:00:00Z"
-}
-```
+- **New Format**: `POST /{tenant}/events` (e.g., `POST /n2con/events`)
+- **Legacy Format**: `POST /events` (disabled in v0.3.1)
 
-**Output (GELF to Graylog):**
-```json
-{
-  "version": "0.2.6",
-  "host": "nb_streamer_tenant_123",
-  "short_message": "Netbird peer_login by john@example.com",
-  "_NB_tenant": "tenant_123",
-  "_NB_type": "peer_login",
-  "_NB_user": "john@example.com"
-}
-```
+## 📖 Documentation
+
+- **[📚 Complete Documentation](docs/)** - All guides in one place
+- **[🚀 Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment
+- **[🐳 Container Registry Setup](docs/CONTAINER_REGISTRY.md)** - Using pre-built images
+- **[🔧 Development Guide](docs/DEVELOPMENT.md)** - Local development setup
+- **[📊 API Documentation](docs/API.md)** - API reference and examples
 
 ## ⚙️ Configuration
 
-### Required Settings
+### Environment Variables
+
 ```bash
-# .env file
-NB_GRAYLOG_HOST=your-graylog-server.com  # Your Graylog server
-NB_TENANT_ID=your-unique-tenant-id       # Multi-tenant identifier
+# Required
+NB_TENANTS=tenant1,tenant2,tenant3
+NB_GRAYLOG_HOST=your-graylog-server
+NB_AUTH_TOKEN=your-secure-token
+
+# Optional
+NB_PORT=8080
+NB_LOG_LEVEL=INFO
+NB_EXPOSE_TENANTS=false
 ```
 
-### Optional Settings
-```bash
-# Authentication (default: none)
-NB_AUTH_TYPE=bearer                    # none|bearer|basic|header
-NB_AUTH_TOKEN=your-secure-token       # For bearer/basic auth
+See `.env.example` for complete configuration options.
 
-# Service Configuration
-NB_HOST=0.0.0.0                       # Bind address
-NB_PORT=8000                          # Service port
-NB_GRAYLOG_PORT=12201                 # GELF port
-NB_GRAYLOG_PROTOCOL=udp               # udp|tcp
-NB_LOG_LEVEL=INFO                     # DEBUG|INFO|WARNING|ERROR
+## 🏃‍♂️ Usage Examples
+
+### Send Event to Tenant-specific Endpoint
+
+```bash
+curl -X POST http://localhost:8080/n2con/events \
+  -H "Authorization: Bearer your-token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "user_login",
+    "timestamp": "2025-08-28T12:00:00Z",
+    "user": "john.doe",
+    "message": "User logged in successfully"
+  }'
 ```
 
-See [.env.example](.env.example) for complete configuration options.
+### Health Check
 
-## 🐳 Deployment Options
-
-### Docker (Recommended)
 ```bash
-# Simple deployment - connects to your existing Graylog
-cp .env.example .env  # Configure your Graylog server first
-docker-compose up -d
+curl http://localhost:8080/health
 ```
 
-### Development Environment  
-```bash
-# Development with auto-reload
-cd dev/
-docker-compose -f docker-compose.dev.yml up -d
+### Service Information
 
-# Access NB_Streamer: http://localhost:8001
+```bash
+curl http://localhost:8080/info
 ```
 
-### Python Virtual Environment
+## 🚢 Deployment Options
+
+### 1. Registry-based Deployment (Recommended)
+
 ```bash
-python -m venv venv
-source venv/bin/activate
+# Quick deploy with pre-built images
+./scripts/deploy.sh
+
+# Deploy specific version
+IMAGE_TAG=0.3.1 ./scripts/deploy.sh
+```
+
+### 2. External Reverse Proxy
+
+```bash
+# For use behind nginx/traefik/cloudflare
+docker compose -f docker-compose.external-proxy.yml up -d
+```
+
+### 3. Local Development
+
+```bash
+# Build and run locally
+docker compose up -d --build
+```
+
+## 🔧 Development
+
+### Prerequisites
+
+- Python 3.11+
+- Docker & Docker Compose
+- Git
+
+### Setup
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd NB_Streamer
+
+# Install dependencies
 pip install -r requirements.txt
 
-# Configure environment
+# Set up environment
 cp .env.example .env
-nano .env
 
-# Run service
+# Run locally
 python -m src.main
 ```
 
-## 🧪 Testing
+See [Development Guide](docs/DEVELOPMENT.md) for detailed setup.
 
-### Automated Testing
-```bash
-# Run test suite
-pytest
+## 🎯 Migration from v0.2.x
 
-# With coverage
-pytest --cov=src --cov-report=html
+**Breaking Changes in v0.3.1:**
+- Legacy `/events` endpoint is **disabled**
+- All clients must use tenant-specific endpoints: `/{tenant}/events`
 
-# Development stack testing
-python scripts/test_nb_streamer.py
-```
+### Migration Steps
 
-### Manual Testing
-```bash
-# Health check
-curl http://localhost:8001/health
+1. **Update client URLs**:
+   ```diff
+   - POST /events
+   + POST /n2con/events
+   ```
 
-# Send test event (see examples/)
-curl -X POST http://localhost:8001/events \
-  -H "Content-Type: application/json" \
-  -d @examples/test-event.json
-```
+2. **Remove NB_Tenant from payload**:
+   ```diff
+   {
+     "type": "event",
+   -  "NB_Tenant": "n2con",
+     "message": "Event data"
+   }
+   ```
+
+3. **Update configuration**:
+   ```bash
+   # Add to .env
+   NB_TENANTS=n2con,othertenant
+   ```
 
 ## 📊 Monitoring
 
-### Health Endpoint
+### Health Checks
+
 ```bash
-GET /health
-{
-  "status": "healthy",
-  "service": "nb_streamer",
-  "version": "0.2.6",
-  "tenant_id": "your-tenant-id"
-}
+# Container health
+docker compose ps
+
+# Application health
+curl http://localhost:8080/health
 ```
 
 ### Logs
-```bash
-# Docker logs
-docker logs nb-streamer-prod
-
-# Look for field discovery
-grep "Event contains known fields" logs/
-```
-
-### Graylog Integration
-- Events appear with `_NB_tenant` field for filtering
-- All Netbird fields prefixed with `_NB_`
-- Automatic field discovery logs unknown structures
-
-## 🔐 Authentication
-
-Supports all Netbird authentication methods:
 
 ```bash
-# No authentication (development)
-NB_AUTH_TYPE=none
+# Follow application logs
+docker compose logs -f nb-streamer
 
-# Bearer token
-NB_AUTH_TYPE=bearer
-NB_AUTH_TOKEN=your-secure-token
-
-# Basic authentication  
-NB_AUTH_TYPE=basic
-NB_AUTH_USERNAME=username
-NB_AUTH_PASSWORD=password
-
-# Custom header
-NB_AUTH_TYPE=header
-NB_AUTH_HEADER_NAME=X-API-Key
-NB_AUTH_HEADER_VALUE=secret-value
+# View recent logs
+docker compose logs --tail=100 nb-streamer
 ```
-
-## 📚 Documentation
-
-- **[Quick Deployment](docs/DEPLOYMENT.md)** - Production deployment guide
-- **[Development Setup](docs/DEVELOPMENT.md)** - Local development environment
-- **[Architecture](ARCHITECTURE.md)** - System design and data flow
-- **[Contributing](CONTRIBUTING.md)** - Development workflow and standards
-- **[Examples](examples/)** - Test scripts and sample events
-
-## 🔄 Multi-Tenant Support
-
-Each NB_Streamer instance supports a single tenant but multiple tenants can be deployed:
-
-```bash
-# Tenant A
-NB_TENANT_ID=company_a
-NB_PORT=8000
-
-# Tenant B  
-NB_TENANT_ID=company_b
-NB_PORT=8001
-```
-
-Graylog messages include `_NB_tenant` field for filtering and dashboards.
-
-## 🚀 Performance
-
-- **Throughput**: 100+ events/second
-- **Latency**: <100ms per event
-- **Resource Usage**: ~100MB RAM
-- **Scaling**: Stateless design supports horizontal scaling
-
-## 🛟 Troubleshooting
-
-### Common Issues
-
-**Service won't start:**
-```bash
-# Check configuration
-docker logs nb-streamer-prod
-
-# Test configuration
-python -c "from src.config import config; print('Config OK')"
-```
-
-**Events not reaching Graylog:**
-```bash
-# Test connectivity to your Graylog server
-nc -u your-graylog-host 12201
-
-# Verify Graylog GELF input is configured and running
-# Check network connectivity and firewall rules
-# Ensure Graylog server accepts GELF UDP on port 12201
-```
-
-**Field discovery:**
-```bash
-# Enable debug logging
-NB_LOG_LEVEL=DEBUG
-
-# Check logs for field discovery
-grep "All event fields" logs/nb_streamer.log
-```
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🤝 Contributing
 
-Contributions welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Submit a pull request
 
-## 📞 Support
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
-- **Documentation**: [docs/](docs/) directory
-- **Examples**: [examples/](examples/) directory  
-- **Issues**: [GitHub Issues](https://github.com/yourusername/NB_Streamer/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/NB_Streamer/discussions)
+## 📝 Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and migration notes.
+
+## 🔒 Security
+
+- All endpoints require authentication (configurable)
+- Tenant isolation prevents cross-tenant data access
+- Request validation and sanitization
+- Secure defaults for production deployment
+
+Report security issues privately via GitHub Security Advisories.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🆘 Support
+
+- **Documentation**: Check the [docs/](docs/) directory
+- **Issues**: Use GitHub Issues for bugs and feature requests
+- **Discussions**: Use GitHub Discussions for questions
 
 ---
 
-**Built for production** • **Multi-tenant ready** • **Easy deployment** • **Comprehensive monitoring**
+**Current Version**: 0.3.1 | **Docker Images**: Available on GitHub Container Registry
