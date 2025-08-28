@@ -1,248 +1,139 @@
 # NB_Streamer
 
-**Multi-tenant Event Streaming Service** - A lightweight FastAPI service for securely forwarding events to Graylog with tenant isolation.
+A lightweight, simplified service that streams NetBird webhook events to Graylog with automatic tenant identification via event payload.
 
-[![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/users/USERNAME/packages/container/nb-streamer)
-[![Python](https://img.shields.io/badge/python-3.11+-blue.svg?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
+## Overview
 
-## 🚀 Quick Start
+NB_Streamer v0.5.0 uses a simplified single-endpoint architecture where all NetBird instances send events to the same `/events` endpoint, with tenant identification handled via the `NB_Tenant` field in the event payload.
 
-### Using Pre-built Images (Recommended)
+## Key Features
+
+- **Single endpoint architecture**: All NetBird instances use `/events`
+- **Payload-based tenant identification**: Uses `NB_Tenant` field in JSON payload
+- **Flexible authentication**: Bearer token, basic auth, header auth, or none
+- **Real-time event streaming**: Events forwarded to Graylog via GELF
+- **Statistics tracking**: Per-tenant event statistics and success rates
+- **Health monitoring**: Built-in health checks and metrics
+- **Docker support**: Easy containerized deployment
+
+## Quick Start
+
+### 1. Configuration
+
+Copy and customize the environment configuration:
 
 ```bash
-# Set up environment
 cp .env.example .env
-# Edit .env with your configuration
-
-# Deploy with registry images
-./scripts/deploy.sh
+# Edit .env with your settings
 ```
 
-Your service will be available at `http://localhost:8080`
-
-### Manual Docker Build
-
-```bash
-# Build and run locally
-docker compose up -d --build
-```
-
-## 📋 Features
-
-- **🏢 Multi-tenant Architecture** - Isolated endpoints per tenant
-- **🔐 Multiple Authentication Methods** - Bearer, Basic, Header, or None
-- **⚡ High Performance** - FastAPI-based async processing
-- **🐳 Container Ready** - Optimized Docker images with health checks
-- **📊 Observability** - Structured logging with tenant context
-- **🔄 CI/CD Integration** - Automated builds and deployments
-- **🛡️ Security Focused** - Tenant validation and request sanitization
-
-## 🏗️ Architecture
-
-```
-Client Apps → [Reverse Proxy] → NB_Streamer → Graylog
-    ↓              ↓                ↓           ↓
-Per-tenant     Load balance    Multi-tenant   Centralized
-endpoints      & SSL           validation     logging
-```
-
-### Multi-tenant Endpoints
-
-- **New Format**: `POST /{tenant}/events` (e.g., `POST /n2con/events`)
-- **Legacy Format**: `POST /events` (disabled in v0.3.1)
-
-## 📖 Documentation
-
-- **[📚 Complete Documentation](docs/)** - All guides in one place
-- **[🚀 Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment
-- **[🐳 Container Registry Setup](docs/CONTAINER_REGISTRY.md)** - Using pre-built images
-- **[🔧 Development Guide](docs/DEVELOPMENT.md)** - Local development setup
-- **[📊 API Documentation](docs/API.md)** - API reference and examples
-
-## ⚙️ Configuration
-
-### Environment Variables
-
-```bash
-# Required
-NB_TENANTS=tenant1,tenant2,tenant3
-NB_GRAYLOG_HOST=your-graylog-server
+Required settings:
+```env
+NB_GRAYLOG_HOST=your-graylog-server.com
+NB_AUTH_TYPE=bearer
 NB_AUTH_TOKEN=your-secure-token
-
-# Optional
-NB_PORT=8080
-NB_LOG_LEVEL=INFO
-NB_EXPOSE_TENANTS=false
 ```
 
-See `.env.example` for complete configuration options.
+### 2. NetBird Webhook Configuration
 
-## 🏃‍♂️ Usage Examples
+**This is the key difference in v0.5.0**: You must customize NetBird's webhook body template.
 
-### Send Event to Tenant-specific Endpoint
+In your NetBird Management Console:
 
-```bash
-curl -X POST http://localhost:8080/n2con/events \
-  -H "Authorization: Bearer your-token" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "user_login",
-    "timestamp": "2025-08-28T12:00:00Z",
-    "user": "john.doe",
-    "message": "User logged in successfully"
-  }'
+1. Go to **Settings** → **Integrations** → **Webhooks**
+2. Set webhook URL: `https://your-nb-streamer.com/events`
+3. Set authentication: `Authorization: Bearer your-token`
+4. **Customize body template** (replace `TENANT-NAME` with your identifier):
+
+```json
+{
+  "id": "{{.ID}}",
+  "timestamp": "{{.Timestamp.Format "2006-01-02T15:04:05.999Z07:00"}}",
+  "message": "{{.Message}}",
+  "initiator_id": "{{.InitiatorID}}",
+  "target_id": "{{.TargetID}}",
+  "meta": "{{.Meta}}",
+  "NB_Tenant": "TENANT-NAME"
+}
 ```
 
-### Health Check
+### 3. Deployment
 
+#### Docker (Recommended)
 ```bash
-curl http://localhost:8080/health
+docker run -d \
+  --name nb-streamer \
+  -p 8080:8080 \
+  --env-file .env \
+  nb-streamer:0.5.0
 ```
 
-### Service Information
-
+#### From Source
 ```bash
-curl http://localhost:8080/info
-```
-
-## 🚢 Deployment Options
-
-### 1. Registry-based Deployment (Recommended)
-
-```bash
-# Quick deploy with pre-built images
-./scripts/deploy.sh
-
-# Deploy specific version
-IMAGE_TAG=0.3.1 ./scripts/deploy.sh
-```
-
-### 2. External Reverse Proxy
-
-```bash
-# For use behind nginx/traefik/cloudflare
-docker compose -f docker-compose.external-proxy.yml up -d
-```
-
-### 3. Local Development
-
-```bash
-# Build and run locally
-docker compose up -d --build
-```
-
-## 🔧 Development
-
-### Prerequisites
-
-- Python 3.11+
-- Docker & Docker Compose
-- Git
-
-### Setup
-
-```bash
-# Clone repository
-git clone <repository-url>
-cd NB_Streamer
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Set up environment
-cp .env.example .env
-
-# Run locally
 python -m src.main
 ```
 
-See [Development Guide](docs/DEVELOPMENT.md) for detailed setup.
+## API Endpoints
 
-## 🎯 Migration from v0.2.x
+- `POST /events` - Process NetBird webhook events (requires `NB_Tenant` in payload)
+- `GET /health` - Health check
+- `GET /stats` - Event statistics
 
-**Breaking Changes in v0.3.1:**
-- Legacy `/events` endpoint is **disabled**
-- All clients must use tenant-specific endpoints: `/{tenant}/events`
+## Multiple NetBird Instances
 
-### Migration Steps
+For multiple NetBird deployments (different customers, environments, etc.):
 
-1. **Update client URLs**:
-   ```diff
-   - POST /events
-   + POST /n2con/events
-   ```
+1. **Same webhook URL and token** for all instances
+2. **Different `NB_Tenant` values** in each body template:
+   - Customer A: `"NB_Tenant": "customer-a"`
+   - Customer B: `"NB_Tenant": "customer-b"`  
+   - Staging: `"NB_Tenant": "staging"`
 
-2. **Remove NB_Tenant from payload**:
-   ```diff
-   {
-     "type": "event",
-   -  "NB_Tenant": "n2con",
-     "message": "Event data"
-   }
-   ```
+Events will be automatically routed to the appropriate tenant in Graylog.
 
-3. **Update configuration**:
-   ```bash
-   # Add to .env
-   NB_TENANTS=n2con,othertenant
-   ```
+## Architecture Benefits
 
-## 📊 Monitoring
+- **Simplified management**: One endpoint, one token for all NetBird instances
+- **Easy scaling**: Add new NetBird instances by just changing the body template
+- **Flexible tenant identification**: Tenant names in JSON payload, not URL structure
+- **Backward compatible**: Works with any NetBird version that supports custom templates
 
-### Health Checks
+## Configuration Reference
 
-```bash
-# Container health
-docker compose ps
+See [.env.example](./.env.example) for all available configuration options.
 
-# Application health
-curl http://localhost:8080/health
-```
+### Authentication Types
 
-### Logs
+- `bearer` - Bearer token authentication (recommended)
+- `basic` - HTTP Basic authentication
+- `header` - Custom header authentication  
+- `none` - No authentication (development only)
 
-```bash
-# Follow application logs
-docker compose logs -f nb-streamer
+## Monitoring
 
-# View recent logs
-docker compose logs --tail=100 nb-streamer
-```
+- Health check: `GET /health`
+- Statistics: `GET /stats` (includes per-tenant metrics)
+- Logs: Structured JSON logging to stdout
 
-## 🤝 Contributing
+## Documentation
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Submit a pull request
+- [NetBird Setup Guide](docs/netbird-setup.md) - Detailed NetBird webhook configuration
+- [.env.example](.env.example) - Complete configuration reference
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+## Version 0.5.0 Changes
 
-## 📝 Changelog
+This version represents a major simplification from the multi-tenant complexity of 0.3.x:
 
-See [CHANGELOG.md](CHANGELOG.md) for version history and migration notes.
+- **Removed**: Complex multi-tenant URL routing (`/tenant/events`)
+- **Removed**: Per-tenant authentication tokens
+- **Removed**: Tenant configuration management
+- **Added**: Simple payload-based tenant identification
+- **Added**: Single-endpoint architecture
+- **Improved**: Easier NetBird configuration management
 
-## 🔒 Security
+For multiple NetBird instances, simply customize the webhook body template instead of managing different URLs and tokens.
 
-- All endpoints require authentication (configurable)
-- Tenant isolation prevents cross-tenant data access
-- Request validation and sanitization
-- Secure defaults for production deployment
+## License
 
-Report security issues privately via GitHub Security Advisories.
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Support
-
-- **Documentation**: Check the [docs/](docs/) directory
-- **Issues**: Use GitHub Issues for bugs and feature requests
-- **Discussions**: Use GitHub Discussions for questions
-
----
-
-**Current Version**: 0.3.1 | **Docker Images**: Available on GitHub Container Registry
+MIT License - see LICENSE file for details.

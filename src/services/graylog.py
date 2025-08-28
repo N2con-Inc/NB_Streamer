@@ -46,3 +46,39 @@ class GraylogService:
     def close(self):
         """Close the socket connection."""
         self.sock.close()
+
+    async def forward_event(self, transformed_event: dict) -> bool:
+        """
+        Forward an event to Graylog.
+        
+        Args:
+            transformed_event: Dictionary containing the transformed event data
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Create GELF message from transformed event
+            from ..models.gelf import GELFMessage
+            gelf_message = transformed_event
+            
+            # Connect if using TCP
+            self.connect()
+            
+            # Send the message
+            self.send_gelf_message(gelf_message)
+            
+            return True
+        except Exception as e:
+            # Log the error but don't raise - return False to indicate failure
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to forward event to Graylog: {str(e)}")
+            return False
+        finally:
+            # Always close connection for TCP
+            if config.graylog_protocol == "tcp":
+                try:
+                    self.close()
+                except:
+                    pass
